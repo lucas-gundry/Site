@@ -129,3 +129,83 @@ tr:last-child td { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---- Evidence: proof blocks, diagrams, replays ---- */
+:root { --term-bg: #0f1419; --term-text: #d6dde4; --term-dim: #8b97a3; --term-ok: #4fd1a1; --term-bad: #ff8a80; --term-warn: #f6c56b; --node: #ffffff; --node-line: #b9c1c9; }
+@media (prefers-color-scheme: dark) { :root { --term-bg: #0b0e11; --node: #1d2227; --node-line: #3a424a; } }
+
+.proof { margin: 1.5rem 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.proof-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--line); }
+.proof-head strong { font-size: 0.95rem; }
+.proof-head span { font-size: 0.8rem; color: var(--muted); }
+.proof pre { margin: 0; padding: 0.85rem 0.9rem; background: var(--term-bg); color: var(--term-text); overflow-x: auto;
+  font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; }
+.proof pre code { background: none; padding: 0; font: inherit; color: inherit; }
+.proof .note { margin: 0; padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); }
+.t-dim { color: var(--term-dim); } .t-ok { color: var(--term-ok); } .t-bad { color: var(--term-bad); } .t-warn { color: var(--term-warn); }
+
+.diagram { margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.diagram svg { display: block; width: 100%; max-width: 30rem; height: auto; margin: 0 auto; }
+.diagram figcaption { margin-top: 0.75rem; font-size: 0.85rem; color: var(--muted); text-align: center; }
+.d-node { fill: var(--node); stroke: var(--node-line); stroke-width: 1.5; }
+.d-key { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.d-warn { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.d-title { fill: var(--text); font: 600 14px ui-sans-serif, system-ui, sans-serif; }
+.d-sub { fill: var(--muted); font: 12px ui-sans-serif, system-ui, sans-serif; }
+.d-edge { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.d-edge.dash { stroke-dasharray: 4 4; }
+.d-label { fill: var(--accent); font: 600 11.5px ui-sans-serif, system-ui, sans-serif; }
+.d-arrow { fill: var(--muted); }
+
+/* Replay: a CSS-only step-through (radio buttons, no script) */
+.replay { margin: 1.5rem 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.replay > input { position: absolute; opacity: 0; pointer-events: none; }
+.replay-head { padding: 0.7rem 0.9rem 0.2rem; }
+.replay-head strong { display: block; font-size: 0.95rem; }
+.replay-head span { font-size: 0.82rem; color: var(--muted); }
+.replay-dots { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.6rem 0.9rem; margin: 0; list-style: none; }
+.replay-dots li { margin: 0; }
+.replay-dots label { display: inline-grid; place-items: center; min-width: 2rem; height: 2rem; border-radius: 999px;
+  border: 1px solid var(--line); font-size: 0.82rem; cursor: pointer; color: var(--muted); }
+.replay-steps { list-style: none; margin: 0; padding: 0; }
+.replay-step { display: none; padding: 0 0.9rem 0.9rem; }
+.replay-step .when { font: 600 0.8rem ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
+.replay-step h4 { margin: 0.2rem 0 0.4rem; font-size: 1rem; }
+.replay-step p { margin: 0 0 0.6rem; font-size: 0.95rem; }
+.replay-step pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 0.6rem; padding: 0.6rem 0.75rem; border-radius: 6px; background: var(--term-bg); color: var(--term-text);
+  overflow-x: auto; font: 0.78rem/1.5 ui-monospace, Menlo, Consolas, monospace; }
+.replay-nav { display: flex; justify-content: space-between; gap: 0.5rem; }
+.replay-nav label { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--accent); padding: 0.35rem 0; }
+.replay-nav .off { visibility: hidden; }
+
+.replay > input:nth-of-type(1):checked ~ .replay-steps > .replay-step:nth-child(1) { display: block; }
+.replay > input:nth-of-type(1):checked ~ .replay-dots li:nth-child(1) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(1):focus-visible ~ .replay-dots li:nth-child(1) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(2):checked ~ .replay-steps > .replay-step:nth-child(2) { display: block; }
+.replay > input:nth-of-type(2):checked ~ .replay-dots li:nth-child(2) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(2):focus-visible ~ .replay-dots li:nth-child(2) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(3):checked ~ .replay-steps > .replay-step:nth-child(3) { display: block; }
+.replay > input:nth-of-type(3):checked ~ .replay-dots li:nth-child(3) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(3):focus-visible ~ .replay-dots li:nth-child(3) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(4):checked ~ .replay-steps > .replay-step:nth-child(4) { display: block; }
+.replay > input:nth-of-type(4):checked ~ .replay-dots li:nth-child(4) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(4):focus-visible ~ .replay-dots li:nth-child(4) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(5):checked ~ .replay-steps > .replay-step:nth-child(5) { display: block; }
+.replay > input:nth-of-type(5):checked ~ .replay-dots li:nth-child(5) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(5):focus-visible ~ .replay-dots li:nth-child(5) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(6):checked ~ .replay-steps > .replay-step:nth-child(6) { display: block; }
+.replay > input:nth-of-type(6):checked ~ .replay-dots li:nth-child(6) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(6):focus-visible ~ .replay-dots li:nth-child(6) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(7):checked ~ .replay-steps > .replay-step:nth-child(7) { display: block; }
+.replay > input:nth-of-type(7):checked ~ .replay-dots li:nth-child(7) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(7):focus-visible ~ .replay-dots li:nth-child(7) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(8):checked ~ .replay-steps > .replay-step:nth-child(8) { display: block; }
+.replay > input:nth-of-type(8):checked ~ .replay-dots li:nth-child(8) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(8):focus-visible ~ .replay-dots li:nth-child(8) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(9):checked ~ .replay-steps > .replay-step:nth-child(9) { display: block; }
+.replay > input:nth-of-type(9):checked ~ .replay-dots li:nth-child(9) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(9):focus-visible ~ .replay-dots li:nth-child(9) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.replay > input:nth-of-type(10):checked ~ .replay-steps > .replay-step:nth-child(10) { display: block; }
+.replay > input:nth-of-type(10):checked ~ .replay-dots li:nth-child(10) label { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.replay > input:nth-of-type(10):focus-visible ~ .replay-dots li:nth-child(10) label { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media print { .replay-step { display: block !important; } .replay-dots, .replay-nav { display: none; } }

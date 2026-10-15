@@ -1,9 +1,10 @@
 // Cloudflare Worker "lucasgundry": static assets only, no Worker code.
-// Workers Builds: main runs `npx wrangler deploy` (production); other
-// branches upload a version with a preview URL.
+// Previews: scripts/deploy-preview.sh (wrangler versions upload, alias
+// "preview"). Production (wrangler versions deploy) only with Lucas's OK.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lucasgundry",
+  "account_id": "04b30eae78aaef6284ad91f88365f625",
   "compatibility_date": "2026-10-15",
   "assets": {
     "directory": "./public",

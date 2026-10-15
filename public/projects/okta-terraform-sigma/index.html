@@ -35,6 +35,54 @@
     <p>I wanted both halves done properly. The directory should be reviewable and repeatable. The first detection should be proven to fire on an attack and stay quiet on normal mistakes.</p>
 
     <h2>What I built</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 360 590" role="img" aria-labelledby="t d" xmlns="http://www.w3.org/2000/svg"><title>Identity as code to detection</title><desc>An HR CSV drives Terraform, which manages the Okta directory. Okta&#x27;s audit log is read by Elastic Agent through a read-only OAuth app and stored in Elasticsearch, where a threshold rule built from a Sigma query raises an alert.</desc>
+<rect class="d-node" x="30" y="8" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="29" text-anchor="middle">HR file (CSV)</text>
+<text class="d-sub" x="180.0" y="45" text-anchor="middle">source of truth: 30 employees</text>
+<rect class="d-key" x="30" y="88" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="109" text-anchor="middle">terraform plan → review → apply</text>
+<text class="d-sub" x="180.0" y="125" text-anchor="middle">nothing applied without review</text>
+<rect class="d-node" x="30" y="168" width="300" height="62" rx="8"/>
+<text class="d-title" x="180.0" y="189" text-anchor="middle">Okta directory</text>
+<text class="d-sub" x="180.0" y="205" text-anchor="middle">8 departments · 13 groups</text>
+<text class="d-sub" x="180.0" y="221" text-anchor="middle">users staged until needed</text>
+<rect class="d-key" x="30" y="264" width="300" height="62" rx="8"/>
+<text class="d-title" x="180.0" y="285" text-anchor="middle">Elastic Agent</text>
+<text class="d-sub" x="180.0" y="301" text-anchor="middle">its own OAuth app</text>
+<text class="d-sub" x="180.0" y="317" text-anchor="middle">one scope: read logs</text>
+<rect class="d-node" x="30" y="360" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="381" text-anchor="middle">Elasticsearch</text>
+<text class="d-sub" x="180.0" y="397" text-anchor="middle">each event stored by its Okta ID</text>
+<rect class="d-key" x="30" y="440" width="300" height="62" rx="8"/>
+<text class="d-title" x="180.0" y="461" text-anchor="middle">Threshold rule</text>
+<text class="d-sub" x="180.0" y="477" text-anchor="middle">Sigma base query</text>
+<text class="d-sub" x="180.0" y="493" text-anchor="middle">5+ failures, one user, 5 minutes</text>
+<rect class="d-node" x="30" y="536" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="557" text-anchor="middle">Alert</text>
+<text class="d-sub" x="180.0" y="573" text-anchor="middle">one per burst, with the count</text>
+<path class="d-edge" d="M180.0 54.0 L180.0 81.0"/>
+<polygon class="d-arrow" points="180.0,88.0 184.0,81.0 176.0,81.0"/>
+<text class="d-label" x="188.0" y="75.0" text-anchor="start">edit a row</text>
+<path class="d-edge" d="M180.0 134.0 L180.0 161.0"/>
+<polygon class="d-arrow" points="180.0,168.0 184.0,161.0 176.0,161.0"/>
+<text class="d-label" x="188.0" y="155.0" text-anchor="start">token: home network only</text>
+<path class="d-edge" d="M180.0 230.0 L180.0 257.0"/>
+<polygon class="d-arrow" points="180.0,264.0 184.0,257.0 176.0,257.0"/>
+<text class="d-label" x="188.0" y="251.0" text-anchor="start">audit log, polled every 60 s</text>
+<path class="d-edge" d="M180.0 326.0 L180.0 353.0"/>
+<polygon class="d-arrow" points="180.0,360.0 184.0,353.0 176.0,353.0"/>
+<text class="d-label" x="188.0" y="347.0" text-anchor="start">send</text>
+<path class="d-edge" d="M180.0 406.0 L180.0 433.0"/>
+<polygon class="d-arrow" points="180.0,440.0 184.0,433.0 176.0,433.0"/>
+<text class="d-label" x="188.0" y="427.0" text-anchor="start">query</text>
+<path class="d-edge" d="M180.0 502.0 L180.0 529.0"/>
+<polygon class="d-arrow" points="180.0,536.0 184.0,529.0 176.0,529.0"/>
+<text class="d-label" x="188.0" y="523.0" text-anchor="start">fires</text>
+</svg>
+      <figcaption>How a change flows: the HR file drives the directory, the directory's audit log feeds the SIEM, and the rule turns failures into alerts. Highlighted boxes are the controls.</figcaption>
+    </figure>
+
     <h3>The directory, as code</h3>
     <ul>
       <li>A fake company of <strong>30 employees in 8 departments and 13 groups</strong>, built in Okta with Terraform.</li>
@@ -55,8 +103,41 @@
     </ul>
     <div class="callout"><p><strong>Why the threshold lives in Elastic, not Sigma:</strong> I tested the converters. The Lucene backend doesn't convert Sigma correlation rules. The ES|QL backend makes a different kind of rule with fixed time buckets. So the Sigma file holds the base rule, and the Elastic rule holds the count. The query the converter produces matches the deployed rule exactly.</p></div>
 
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>The converter&#x27;s output is the deployed query</strong><span>Sigma rule → Lucene, run with the field-mapping pipeline</span></figcaption>
+      <pre><code>$ sigma convert -t lucene -p detections/pipelines/okta-ecs.yml \
+    detections/okta/okta_repeated_failed_logins.yml
+event.dataset:okta.system AND (event.action:user.session.start AND event.outcome:failure)
+
+# Elastic threshold rule on top of that query:
+#   group by   user.name
+#   threshold  &gt;= 5
+#   runs every 5 minutes, looks back 6</code></pre>
+      <p class="note">Exact command and output, from the rule file's header. The threshold settings are summarized from the Elastic rule.</p>
+    </figure>
     <h2>How I tested it</h2>
     <h3>Test cases kept next to the rule</h3>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>Test cases file: why each case should or shouldn&#x27;t fire</strong><span>detections/okta/tests/*.cases.json (made-up events, real shape)</span></figcaption>
+      <pre><code>fire     five failures for one user in four minutes
+         5 matching events, same user.name
+
+no_fire  four failures, then a success (forgot the password)
+         only 4 failures; the success doesn't match
+
+no_fire  five failures spread over five users (spraying)
+         1 per user: a known gap, spraying needs
+         its own rule, grouped by source.ip
+
+events in each case look like:
+{&quot;event&quot;: {&quot;dataset&quot;: &quot;okta.system&quot;, &quot;action&quot;: &quot;user.session.start&quot;,
+           &quot;outcome&quot;: &quot;failure&quot;},
+ &quot;user&quot;: {&quot;name&quot;: &quot;user-a@example-company&quot;},
+ &quot;okta&quot;: {&quot;outcome&quot;: {&quot;reason&quot;: &quot;VERIFICATION_ERROR&quot;}},
+ &quot;source&quot;: {&quot;ip&quot;: &quot;&lt;documentation range&gt;&quot;}}</code></pre>
+      <p class="note">The case names, expectations, and reasons come from the file. The events already use made-up users and documentation IP ranges. Here they're shortened, and the users and IPs are replaced.</p>
+    </figure>
+
     <div class="table-wrap"><table>
       <thead><tr><th>Case</th><th>Expected</th><th>Why</th></tr></thead>
       <tbody>
@@ -71,6 +152,77 @@
       <li>A second user had 4 failures, below the threshold. <strong>No alert.</strong></li>
       <li>The first user had a second burst of 7 a few minutes later. <strong>A second alert, count 7.</strong> The bursts were counted separately (6 and 7, not 13).</li>
     </ul>
+    <section class="replay" aria-label="the live failed-sign-in test">
+      <input type="radio" name="r1" id="r1-1" checked aria-label="Step 1 of 7">
+      <input type="radio" name="r1" id="r1-2" aria-label="Step 2 of 7">
+      <input type="radio" name="r1" id="r1-3" aria-label="Step 3 of 7">
+      <input type="radio" name="r1" id="r1-4" aria-label="Step 4 of 7">
+      <input type="radio" name="r1" id="r1-5" aria-label="Step 5 of 7">
+      <input type="radio" name="r1" id="r1-6" aria-label="Step 6 of 7">
+      <input type="radio" name="r1" id="r1-7" aria-label="Step 7 of 7">
+      <div class="replay-head"><strong>Replay: the live failed-sign-in test</strong><span>Real times and counts (PT, 2026-10-04). Users renamed; alert text rebuilt.</span></div>
+      <ol class="replay-dots">
+        <li><label for="r1-1" title="Step 1">1</label></li>
+        <li><label for="r1-2" title="Step 2">2</label></li>
+        <li><label for="r1-3" title="Step 3">3</label></li>
+        <li><label for="r1-4" title="Step 4">4</label></li>
+        <li><label for="r1-5" title="Step 5">5</label></li>
+        <li><label for="r1-6" title="Step 6">6</label></li>
+        <li><label for="r1-7" title="Step 7">7</label></li>
+      </ol>
+      <ol class="replay-steps">
+        <li class="replay-step">
+          <span class="when">4:18:30 PM · step 1 of 7</span>
+          <h4>Burst 1: user A fails 6 times</h4>
+          <p>Six failed sign-ins in 31 seconds. Okta logs each one as a failed <code>user.session.start</code>.</p>
+          <pre>4:18:30 → 4:19:01   user A   user.session.start   FAILURE   x6
+                     reason: VERIFICATION_ERROR</pre>
+          <div class="replay-nav"><span class="off">&larr; Back</span><label for="r1-2">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">4:19:23 PM · step 2 of 7</span>
+          <h4>User B fails 4 times</h4>
+          <p>Four failures in 11 seconds, one below the threshold. This is the forgot-my-password shape.</p>
+          <pre>4:19:23 → 4:19:34   user B   user.session.start   FAILURE   x4</pre>
+          <div class="replay-nav"><label for="r1-1">&larr; Back</label><label for="r1-3">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">+71 to 115 s · step 3 of 7</span>
+          <h4>The events reach the SIEM</h4>
+          <p>Each event is ingested 71 to 115 seconds after it happened. That's the polling interval plus delivery. The rule's 5-minute window has to allow for this.</p>
+          <div class="replay-nav"><label for="r1-2">&larr; Back</label><label for="r1-4">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">~4:25 PM · step 4 of 7</span>
+          <h4>Alert 1: user A, count 6</h4>
+          <p>The threshold rule fires once for user A. User B has no alert, which is the expected result.</p>
+          <pre>ALERT  Okta: repeated failed sign-ins for one user
+       user: user A   count: 6
+(no alert for user B: 4 &lt; 5)</pre>
+          <div class="replay-nav"><label for="r1-3">&larr; Back</label><label for="r1-5">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">4:26:07 PM · step 5 of 7</span>
+          <h4>Burst 2: user A fails 7 more times</h4>
+          <p>A second burst for the same user, 4:26:07 to 4:26:23.</p>
+          <div class="replay-nav"><label for="r1-4">&larr; Back</label><label for="r1-6">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">after 4:30 PM · step 6 of 7</span>
+          <h4>Alert 2: user A, count 7</h4>
+          <p>A repeat burst alerts again. The two bursts are counted separately (6 and 7), not as 13.</p>
+          <pre>ALERT  Okta: repeated failed sign-ins for one user
+       user: user A   count: 7</pre>
+          <div class="replay-nav"><label for="r1-5">&larr; Back</label><label for="r1-7">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">what it doesn&#x27;t show · step 7 of 7</span>
+          <h4>The honest limit</h4>
+          <p>Both users were <em>staged</em>, so these were "can't sign in" failures, not real wrong passwords, and no lockout was possible. Testing a real wrong password and a lockout is next.</p>
+          <div class="replay-nav"><label for="r1-6">&larr; Back</label><label for="r1-1">Start over &#8634;</label></div>
+        </li>
+      </ol>
+    </section>
     <h3>Revoking the collector's access</h3>
     <ul>
       <li>I deactivated the collector's Okta app on purpose. It was refused <strong>2 seconds</strong> later.</li>

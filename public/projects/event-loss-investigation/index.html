@@ -36,6 +36,46 @@
     <p>That root cause was wrong.</p>
 
     <h2>What I built</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 360 348" role="img" aria-labelledby="t d" xmlns="http://www.w3.org/2000/svg"><title>How the gap check measures loss</title><desc>Okta&#x27;s audit log is polled by Elastic Agent and stored in Elasticsearch. A separate read-only gap check lists event IDs in Okta, looks each one up in Elasticsearch, and reports nothing missing, events missing, or couldn&#x27;t run.</desc>
+<rect class="d-node" x="8" y="8" width="170" height="46" rx="8"/>
+<text class="d-title" x="93.0" y="29" text-anchor="middle">Okta audit log</text>
+<text class="d-sub" x="93.0" y="45" text-anchor="middle">every event has an ID</text>
+<rect class="d-node" x="8" y="94" width="170" height="62" rx="8"/>
+<text class="d-title" x="93.0" y="115" text-anchor="middle">Elastic Agent</text>
+<text class="d-sub" x="93.0" y="131" text-anchor="middle">polls every 60 s</text>
+<text class="d-sub" x="93.0" y="147" text-anchor="middle">bookmark · retries</text>
+<rect class="d-node" x="8" y="196" width="170" height="62" rx="8"/>
+<text class="d-title" x="93.0" y="217" text-anchor="middle">Elasticsearch</text>
+<text class="d-sub" x="93.0" y="233" text-anchor="middle">stores by Okta ID</text>
+<text class="d-sub" x="93.0" y="249" text-anchor="middle">duplicates rejected</text>
+<path class="d-edge" d="M93.0 54.0 L93.0 87.0"/>
+<polygon class="d-arrow" points="93.0,94.0 97.0,87.0 89.0,87.0"/>
+<text class="d-label" x="101.0" y="78.0" text-anchor="start">since bookmark</text>
+<path class="d-edge" d="M93.0 156.0 L93.0 189.0"/>
+<polygon class="d-arrow" points="93.0,196.0 97.0,189.0 89.0,189.0"/>
+<text class="d-label" x="101.0" y="180.0" text-anchor="start">send batch</text>
+<rect class="d-key" x="212" y="100" width="140" height="78" rx="8"/>
+<text class="d-title" x="282.0" y="121" text-anchor="middle">Gap check</text>
+<text class="d-sub" x="282.0" y="137" text-anchor="middle">read-only, both sides</text>
+<text class="d-sub" x="282.0" y="153" text-anchor="middle">match by event ID</text>
+<text class="d-sub" x="282.0" y="169" text-anchor="middle">LOST or PENDING</text>
+<path class="d-edge dash" d="M222.0 100.0 L184.6 37.0"/>
+<polygon class="d-arrow" points="181.0,31.0 181.1,39.1 188.0,35.0"/>
+<text class="d-label" x="292.0" y="90" text-anchor="middle">lists IDs</text>
+<path class="d-edge dash" d="M222.0 178.0 L185.5 221.6"/>
+<polygon class="d-arrow" points="181.0,227.0 188.6,224.2 182.4,219.1"/>
+<text class="d-label" x="286.0" y="196" text-anchor="middle">looks up each</text>
+<rect class="d-node" x="8" y="294" width="344" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="315" text-anchor="middle">Result</text>
+<text class="d-sub" x="180.0" y="331" text-anchor="middle">0 nothing missing · 1 events missing · 2 couldn&#x27;t run</text>
+<path class="d-edge" d="M336.0 178.0 L336.0 287.0"/>
+<polygon class="d-arrow" points="336.0,294.0 340.0,287.0 332.0,287.0"/>
+<text class="d-label" x="330" y="286" text-anchor="end">hourly</text>
+</svg>
+      <figcaption>The gap check sits outside the pipeline and reads both ends. It doesn't trust the collector's own logs.</figcaption>
+    </figure>
+
     <p>Before applying any fix, I built a way to measure loss directly: a <strong>gap check</strong>.</p>
     <ul>
       <li>For a time window, it lists every event ID in Okta's audit log and looks each one up in Elastic.</li>
@@ -44,6 +84,13 @@
       <li>It has unit tests that use fakes only. Its first live run failed on a format my test fixtures had guessed wrong. I fixed it, and the fixtures now copy the real format.</li>
     </ul>
 
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>The log line that started it</strong><span>Elastic Agent log at a boot, rebuilt and shortened</span></figcaption>
+      <pre><code>17:01:09  elasticsearch exporter  &quot;Exporting failed. Dropping data.&quot;
+          dropped_items: 3
+17:01:18  Elasticsearch reachable</code></pre>
+      <p class="note">One boot from the record. Every boot showed the same pattern: one "Dropping data" line 21 to 25 seconds after the first poll, then Elasticsearch reachable 9 to 12 seconds later.</p>
+    </figure>
     <h2>How I tested it</h2>
     <div class="table-wrap"><table>
       <thead><tr><th>Test</th><th>Okta</th><th>Elastic</th><th>Lost</th></tr></thead>
@@ -53,10 +100,99 @@
         <tr><td>A planned outage with an agent restart in the middle</td><td>2</td><td>2</td><td>0</td></tr>
       </tbody>
     </table></div>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>History check across all 5 boots</strong><span>gap check output, rebuilt from the recorded result</span></figcaption>
+      <pre><code>$ okta-gap-check.py --since 2026-09-28T18:00-07:00 --until 2026-10-01T10:00-07:00
+Window:    2026-09-28 18:00:00.000 PDT  -&gt;  2026-10-01 10:00:00.000 PDT
+Okta:      109 events
+Elastic:   109 of them
+Missing:   0 lost, 0 pending
+exit 0</code></pre>
+      <p class="note">The labels follow the check's real output format, and the window and counts come from the investigation record. I left out the Bookmark line, and the command line is illustrative.</p>
+    </figure>
     <p>Every match was by event ID, not by count.</p>
     <p><strong>The decisive case</strong> was one boot where the "dropped" batch held 3 events instead of 1. The two new events were stored 12 seconds after the "Dropping data" line, 3 seconds after Elasticsearch came up, and <em>before</em> the next poll. My theory said a re-fetch could bring back only the newest event. Both came back, before any re-fetch could happen. So the batch was retried and delivered.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>The decisive boot: a 3-event batch</strong><span>matched by Okta event ID, IDs replaced</span></figcaption>
+      <pre><code>event    event time (PT)       type                                   stored in Elastic
+A        09-28  7:37:54 PM     app.oauth2.token.grant.access_token    09-28  7:39:24 PM  (bookmark event)
+B        09-29 12:15:45 PM     app.oauth2.token.grant                 09-29  5:01:21 PM
+C        09-29 12:15:45 PM     app.oauth2.token.grant                 09-29  5:01:21 PM
+
+5:01:09 PM  &quot;Dropping data&quot;, dropped_items: 3
+5:01:18 PM  Elasticsearch reachable
+5:01:21 PM  B and C stored            &lt;- before the next poll
+5:01:44 PM  next poll</code></pre>
+      <p class="note">A re-fetch only brings back the newest event, and only on the next poll. B and C were both stored 23 seconds before that poll, so the batch was retried, not lost.</p>
+    </figure>
     <p>In the restart test, an event was still waiting in memory when I restarted the agent. Its saved bookmark hadn't moved, so it fetched the event again and stored it. Only then did the bookmark move forward.</p>
 
+    <section class="replay" aria-label="the boot that disproved my root cause">
+      <input type="radio" name="r2" id="r2-1" checked aria-label="Step 1 of 7">
+      <input type="radio" name="r2" id="r2-2" aria-label="Step 2 of 7">
+      <input type="radio" name="r2" id="r2-3" aria-label="Step 3 of 7">
+      <input type="radio" name="r2" id="r2-4" aria-label="Step 4 of 7">
+      <input type="radio" name="r2" id="r2-5" aria-label="Step 5 of 7">
+      <input type="radio" name="r2" id="r2-6" aria-label="Step 6 of 7">
+      <input type="radio" name="r2" id="r2-7" aria-label="Step 7 of 7">
+      <div class="replay-head"><strong>Replay: the boot that disproved my root cause</strong><span>Real times (PT, 2026-09-29).</span></div>
+      <ol class="replay-dots">
+        <li><label for="r2-1" title="Step 1">1</label></li>
+        <li><label for="r2-2" title="Step 2">2</label></li>
+        <li><label for="r2-3" title="Step 3">3</label></li>
+        <li><label for="r2-4" title="Step 4">4</label></li>
+        <li><label for="r2-5" title="Step 5">5</label></li>
+        <li><label for="r2-6" title="Step 6">6</label></li>
+        <li><label for="r2-7" title="Step 7">7</label></li>
+      </ol>
+      <ol class="replay-steps">
+        <li class="replay-step">
+          <span class="when">5:00:44 PM · step 1 of 7</span>
+          <h4>First poll after boot</h4>
+          <p>The agent asks Okta for events since its bookmark. Okta has the bookmark event plus two newer ones, B and C. Elasticsearch is still starting.</p>
+          <div class="replay-nav"><span class="off">&larr; Back</span><label for="r2-2">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">5:01:09 PM · step 2 of 7</span>
+          <h4>The scary line</h4>
+          <p>The exporter can't reach Elasticsearch. It logs that it's dropping data.</p>
+          <pre>Exporting failed. Dropping data.   dropped_items: 3</pre>
+          <div class="replay-nav"><label for="r2-1">&larr; Back</label><label for="r2-3">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">my theory · step 3 of 7</span>
+          <h4>What I predicted</h4>
+          <p>If the batch were really dropped and the bookmark had moved on, only the newest event would come back, on the next re-fetch. One of B and C would be lost for good.</p>
+          <div class="replay-nav"><label for="r2-2">&larr; Back</label><label for="r2-4">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">5:01:18 PM · step 4 of 7</span>
+          <h4>Elasticsearch comes up</h4>
+          <p>Nine seconds later, Elasticsearch accepts connections.</p>
+          <div class="replay-nav"><label for="r2-3">&larr; Back</label><label for="r2-5">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">5:01:21 PM · step 5 of 7</span>
+          <h4>B and C are both stored</h4>
+          <p>Three seconds after that, both new events are in Elastic. That's before any re-fetch could happen.</p>
+          <pre>B  app.oauth2.token.grant  stored 5:01:21 PM
+C  app.oauth2.token.grant  stored 5:01:21 PM</pre>
+          <div class="replay-nav"><label for="r2-4">&larr; Back</label><label for="r2-6">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">5:01:44 PM · step 6 of 7</span>
+          <h4>The next poll</h4>
+          <p>The poll my theory depended on comes 23 seconds too late to explain it. The batch was retried and delivered.</p>
+          <div class="replay-nav"><label for="r2-5">&larr; Back</label><label for="r2-7">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">conclusion · step 7 of 7</span>
+          <h4>Retracted</h4>
+          <p>"Dropping data" counts a failed <em>send attempt</em>, not a discarded event. I struck through the root cause, kept it in the record, and closed the issue as not a bug.</p>
+          <div class="replay-nav"><label for="r2-6">&larr; Back</label><label for="r2-1">Start over &#8634;</label></div>
+        </li>
+      </ol>
+    </section>
     <h2>The retraction</h2>
     <p>I closed the item as <strong>not a bug</strong>, with no fix applied. I didn't delete the wrong analysis. It stays in the decision record, struck through, next to a note on where the reasoning went wrong:</p>
     <ul>

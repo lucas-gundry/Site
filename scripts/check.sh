@@ -27,8 +27,24 @@ patterns=(
 )
 files=$(git ls-files --cached --others --exclude-standard | grep -vE '^(scripts/check\.sh|\.gitignore)$')
 for p in "${patterns[@]}"; do
-  hits=$(echo "$files" | xargs -r grep -nEi -- "$p" 2>/dev/null)
+  scope=$files
+  # scripts/ isn't served and names its own credential file; every other
+  # pattern, and gitleaks, still cover it.
+  [ "$p" = '_env\b' ] && scope=$(echo "$files" | grep -v '^scripts/')
+  hits=$(echo "$scope" | xargs -r grep -nEi -- "$p" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL private detail /$p/:"; echo "$hits"; fail=1; fi
+done
+
+# Binary images: the same patterns over their embedded strings, and no
+# metadata at all (EXIF, XMP, PNG text chunks can carry hostnames, paths,
+# GPS, or the camera owner). SVGs are text and covered by the grep above.
+for img in $(echo "$files" | grep -Ei '\.(png|jpe?g|gif|webp|avif|ico)$'); do
+  s=$(strings -n 4 "$img")
+  for p in "${patterns[@]}"; do
+    echo "$s" | grep -qEi -- "$p" && { echo "FAIL private detail /$p/ inside $img"; fail=1; }
+  done
+  echo "$s" | grep -qE 'Exif|<x:xmpmeta|http://ns\.adobe\.com/xap|tEXt|iTXt|zTXt' \
+    && { echo "FAIL metadata in $img: strip it (e.g. exiftool -all= or re-export)"; fail=1; }
 done
 
 # Internal links: every href="/..." must resolve to a file under public/.
