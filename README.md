@@ -8,4 +8,4 @@ Static site, no build step and no JavaScript. Hosted on Cloudflare Pages:
 - Before every push: `scripts/check.sh` (gitleaks, a grep for private lab
   details, internal links). Any failure blocks the push.
 
-Preview locally: `python3 -m http.server 8000`, then open http://localhost:8000.
+Preview locally: run `python3 -m http.server` here and open the address it prints.
