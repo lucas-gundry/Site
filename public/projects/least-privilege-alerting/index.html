@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Least privilege and alerts that tell me when they're broken · Lucas Gundry</title>
-  <meta name="description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, with every alert state tested live.">
+  <meta name="description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, and an alert test that caught my own wiring mistake.">
   <meta property="og:title" content="Least privilege and alerts that tell me when they're broken · Lucas Gundry">
-  <meta property="og:description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, with every alert state tested live.">
+  <meta property="og:description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, and an alert test that caught my own wiring mistake.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -76,22 +76,24 @@
     <div class="table-wrap"><table>
       <thead><tr><th>State</th><th>How I caused it</th><th>Gap check</th><th>Snapshot check</th></tr></thead>
       <tbody>
-        <tr><td><strong>OK</strong></td><td>A normal run</td><td>Reported up, no email (correct)</td><td>Reported up, no email (correct)</td></tr>
-        <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Down email naming the failed rule, then up</td></tr>
-        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't complete</td><td>9 tries over 4 minutes, then a down email, then up</td><td>9 tries over 4 minutes, then a down email, then up</td></tr>
-        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Missed run confirmed in the log; on restart the missed check ran at once and reported up</td></tr>
+        <tr><td><strong>OK</strong></td><td>A normal run</td><td>Reported up, no email (correct)</td><td>Reported up</td></tr>
+        <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Rerun pending (see below)</td></tr>
+        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't complete</td><td>9 tries over 4 minutes, then a down email, then up</td><td>Rerun pending (see below)</td></tr>
+        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Caught a real bug (below); rerun in progress</td></tr>
       </tbody>
     </table></div>
     <p>One more case: I ran the real snapshot check with a made-up password. It got a 401, exited with an error, and sent <em>nothing</em>. An authentication error with no summary shouldn't turn into a report.</p>
 
     <h3>What went wrong on the way</h3>
-    <p>The first two clean runs failed with "missing settings file". I had created it on the wrong machine. The wrapper refused to run and sent nothing, as designed. The setup command has a hostname check for exactly this mistake.</p>
+    <p><strong>The "didn't run" test caught a real mistake.</strong> I stopped the snapshot check's timer and waited for the missing-report email. It never came. The snapshot check's settings file held the <em>gap check's</em> ping URL, so every snapshot report had gone to the gap check's monitor. That monitor gets an "ok" every hour from the gap check, so a skipped snapshot run could never make it go down. The earlier failure emails were real, but they arrived on the wrong monitor.</p>
+    <p>The wrapper had checked the URL's format, its file permissions, and its owner, and the wrong URL passed all three. Now it also refuses to run if its URL points at the same monitor as the gap check's. Three new tests cover that, and they fail if the guard is removed. I'm rerunning the alert tests on the right monitor.</p>
+    <p>Earlier, the first two clean runs failed with "missing settings file". I had created it on the wrong machine. The wrapper refused to run and sent nothing, as designed.</p>
 
     <h2>What I learned</h2>
     <ul>
       <li><strong>Prove least privilege by what's refused.</strong> A role that passes every read test might still be able to delete your backups.</li>
       <li><strong>Make "allowed" impossible to mistake for "refused".</strong> Testing against things that don't exist turns a silent pass into a visible failure.</li>
-      <li><strong>Silence is a failure mode.</strong> A check that only alerts when it runs can't tell you it stopped. An outside dead man's switch can.</li>
+      <li><strong>Silence is a failure mode.</strong> A check that only alerts when it runs can't tell you it stopped. An outside dead man's switch can, but only if each job reports to its own monitor. Test the "didn't run" case. It's the one that caught my mistake.</li>
       <li><strong>Choose what leaves the network.</strong> The alert body is a short, fixed format, so monitoring doesn't leak internal names.</li>
       <li><strong>Know the limits.</strong> The tests prove the alert path, not a real backup failure. Making one would need admin changes. A machine that is off and one that skipped a run look the same: both are silence.</li>
     </ul>
