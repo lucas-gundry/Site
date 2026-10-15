@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The missing-logs investigation where I was wrong · Lucas Gundry</title>
-  <meta name="description" content="Investigating apparent loss of Okta security events on the way into Elastic, building a way to measure it, and retracting my own root cause when the evidence disproved it.">
-  <meta property="og:title" content="The missing-logs investigation where I was wrong · Lucas Gundry">
-  <meta property="og:description" content="Investigating apparent loss of Okta security events on the way into Elastic, building a way to measure it, and retracting my own root cause when the evidence disproved it.">
+  <title>Missing logs that weren't missing · Lucas Gundry</title>
+  <meta name="description" content="How I investigated what looked like lost Okta security events, built a check to measure it, and retracted my own root cause when the results disproved it.">
+  <meta property="og:title" content="Missing logs that weren't missing · Lucas Gundry">
+  <meta property="og:description" content="How I investigated what looked like lost Okta security events, built a check to measure it, and retracted my own root cause when the results disproved it.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -27,13 +27,13 @@
   <main id="main" class="wrap">
 <a class="back" href="/projects/">&larr; All projects</a>
     <span class="eyebrow">Investigation</span>
-    <h1>The missing-logs investigation where I was wrong</h1>
+    <h1>Missing logs that weren't missing</h1>
     <p class="meta">Okta · Elastic Agent · Elasticsearch · Python</p>
 
     <h2>Problem</h2>
-    <p>After a reboot, the agent that ships Okta's audit log into my SIEM logged <code>Exporting failed. Dropping data.</code> It had tried to send events while Elasticsearch was still starting up.</p>
-    <p>For a SIEM, losing security logs without any warning is about the worst failure there is. Every detection downstream would be blind, and nothing would tell you. So I took it seriously, and I wrote up a root cause: <em>during an outage, delivery is at-most-once, so events can be silently lost.</em> I drafted six fix options.</p>
-    <p>That root cause was wrong.</p>
+    <p>After I rebooted the lab, the agent that ships Okta's audit log to my SIEM logged <code>Exporting failed. Dropping data.</code> It had tried to send events while Elasticsearch was still starting.</p>
+    <p>Losing security logs with no warning would be serious. Every detection after that point would be missing data, and nothing would tell me. I read the line as proof of loss and wrote up a root cause: during an outage, events can be lost for good. I drafted six possible fixes.</p>
+    <p>I was wrong, and I only found out by measuring.</p>
 
     <h2>What I built</h2>
     <figure class="diagram">
@@ -73,17 +73,14 @@
 <polygon class="d-arrow" points="336.0,294.0 340.0,287.0 332.0,287.0"/>
 <text class="d-label" x="330" y="286" text-anchor="end">hourly</text>
 </svg>
-      <figcaption>The gap check sits outside the pipeline and reads both ends. It doesn't trust the collector's own logs.</figcaption>
+      <figcaption>The gap check sits outside the pipeline and reads both ends. It doesn't rely on the collector's own logs.</figcaption>
     </figure>
+    <p>Before changing anything, I wrote a gap check to measure loss directly. It takes a time window and lists every event ID in Okta's audit log. Then it looks up each ID in Elastic.</p>
+    <p>A missing event is LOST if it's older than the agent's bookmark, because the agent won't fetch it again. It's PENDING if it's newer, because the next poll should pick it up.</p>
+    <p>The check only reads. It uses an Okta app that can only read logs, and a read-only Elastic account. Exit code 0 means nothing is missing, 1 means events are missing, and 2 means the check couldn't run.</p>
+    <p>It started with 25 unit tests that use fakes. The first live run failed because my test data had guessed the agent's file format wrong. I fixed the code and copied the real format into the tests.</p>
 
-    <p>Before applying any fix, I built a way to measure loss directly: a <strong>gap check</strong>.</p>
-    <ul>
-      <li>For a time window, it lists every event ID in Okta's audit log and looks each one up in Elastic.</li>
-      <li>Each missing event is labeled <strong>LOST</strong> (before the collector's bookmark, so it will never be fetched again) or <strong>PENDING</strong> (the next poll should pick it up).</li>
-      <li>It is read-only on both sides: a log-read-only Okta app and a read-only Elastic account. Its exit codes are simple: 0 means nothing missing, 1 means events missing, 2 means the check couldn't run.</li>
-      <li>It has unit tests that use fakes only. Its first live run failed on a format my test fixtures had guessed wrong. I fixed it, and the fixtures now copy the real format.</li>
-    </ul>
-
+    <h2>How I tested it</h2>
     <figure class="proof">
       <figcaption class="proof-head"><strong>The log line that started it</strong><span>Elastic Agent log at a boot, rebuilt and shortened</span></figcaption>
       <pre><code>17:01:09  elasticsearch exporter  &quot;Exporting failed. Dropping data.&quot;
@@ -91,7 +88,6 @@
 17:01:18  Elasticsearch reachable</code></pre>
       <p class="note">One boot from the record. Every boot showed the same pattern: one "Dropping data" line 21 to 25 seconds after the first poll, then Elasticsearch reachable 9 to 12 seconds later.</p>
     </figure>
-    <h2>How I tested it</h2>
     <div class="table-wrap"><table>
       <thead><tr><th>Test</th><th>Okta</th><th>Elastic</th><th>Lost</th></tr></thead>
       <tbody>
@@ -100,6 +96,7 @@
         <tr><td>A planned outage with an agent restart in the middle</td><td>2</td><td>2</td><td>0</td></tr>
       </tbody>
     </table></div>
+    <p>I matched every event by its ID.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>History check across all 5 boots</strong><span>gap check output, rebuilt from the recorded result</span></figcaption>
       <pre><code>$ okta-gap-check.py --since 2026-09-28T18:00-07:00 --until 2026-10-01T10:00-07:00
@@ -110,8 +107,7 @@ Missing:   0 lost, 0 pending
 exit 0</code></pre>
       <p class="note">The labels follow the check's real output format, and the window and counts come from the investigation record. I left out the Bookmark line, and the command line is illustrative.</p>
     </figure>
-    <p>Every match was by event ID, not by count.</p>
-    <p><strong>The decisive case</strong> was one boot where the "dropped" batch held 3 events instead of 1. The two new events were stored 12 seconds after the "Dropping data" line, 3 seconds after Elasticsearch came up, and <em>before</em> the next poll. My theory said a re-fetch could bring back only the newest event. Both came back, before any re-fetch could happen. So the batch was retried and delivered.</p>
+    <p>One boot settled it. The dropped batch held 3 events: the bookmark event and two new ones. Both new events were stored 12 seconds after the "Dropping data" line and 3 seconds after Elasticsearch came up. That was before the next poll. If my theory were right, only the newest event could have come back, and only on that next poll. Both came back early, so the agent had retried the batch.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>The decisive boot: a 3-event batch</strong><span>matched by Okta event ID, IDs replaced</span></figcaption>
       <pre><code>event    event time (PT)       type                                   stored in Elastic
@@ -125,8 +121,7 @@ C        09-29 12:15:45 PM     app.oauth2.token.grant                 09-29  5:0
 5:01:44 PM  next poll</code></pre>
       <p class="note">A re-fetch only brings back the newest event, and only on the next poll. B and C were both stored 23 seconds before that poll, so the batch was retried, not lost.</p>
     </figure>
-    <p>In the restart test, an event was still waiting in memory when I restarted the agent. Its saved bookmark hadn't moved, so it fetched the event again and stored it. Only then did the bookmark move forward.</p>
-
+    <p>In the restart test, one event was still waiting in memory when I restarted the agent. Its bookmark hadn't moved, so it fetched the event again after the restart and stored it. The bookmark moved only after that.</p>
     <section class="replay" aria-label="the boot that disproved my root cause">
       <input type="radio" name="r2" id="r2-1" checked aria-label="Step 1 of 7">
       <input type="radio" name="r2" id="r2-2" aria-label="Step 2 of 7">
@@ -193,28 +188,28 @@ C  app.oauth2.token.grant  stored 5:01:21 PM</pre>
         </li>
       </ol>
     </section>
+
     <h2>The retraction</h2>
-    <p>I closed the item as <strong>not a bug</strong>, with no fix applied. I didn't delete the wrong analysis. It stays in the decision record, struck through, next to a note on where the reasoning went wrong:</p>
+    <p>I closed the issue as not a bug and applied no fix. I kept my wrong analysis in the decision record, struck through, with a note on where it went wrong.</p>
     <ul>
-      <li>I read a scary log line as proof of loss. It actually counted a failed <em>send attempt</em>, not a discarded event.</li>
-      <li>My theory rested on a 1-event batch. With one event, a retry and a re-fetch look exactly the same.</li>
-      <li>Nobody had seen the bookmark move <em>before</em> delivery. I'd only read it after recovery.</li>
+      <li>I treated a log message as proof. The line counts failed send attempts. It doesn't count lost events.</li>
+      <li>I based the theory on a batch of 1 event. With one event, a retry and a re-fetch look the same.</li>
+      <li>I never saw the bookmark move before delivery. I only looked at it after things had recovered.</li>
     </ul>
-    <div class="callout"><p><strong>What still isn't tested, said out loud:</strong> an outage longer than the agent's in-memory queue, and a multi-event batch across an agent restart. The control for those is the gap check itself, now running every hour and alerting on any LOST event and on "couldn't run". That's the <a href="/projects/least-privilege-alerting/">next write-up</a>.</p></div>
-    <p>The investigation also turned up a real operational issue. If the agent restarts while Elasticsearch is down, it can't start until Elasticsearch is back. Collection pauses, but nothing is lost, because it resumes from its bookmark.</p>
+    <div class="callout"><p><strong>Still untested:</strong> an outage longer than the agent's memory queue can hold, and a multi-event batch across an agent restart. The gap check covers those cases. It now runs every hour and alerts me on any LOST event or if it can't run. The <a href="/projects/least-privilege-alerting/">next write-up</a> covers that alerting.</p></div>
+    <p>The investigation did find one real issue. If the agent restarts while Elasticsearch is down, it can't start until Elasticsearch is back. Collection pauses, but nothing is lost, because it resumes from its bookmark.</p>
 
     <h2>What I learned</h2>
     <ul>
-      <li><strong>A log message is a hypothesis, not a finding.</strong></li>
-      <li><strong>Build the measurement before the fix.</strong> The gap check took less time than any of the six fixes, and it made all of them unnecessary.</li>
-      <li><strong>Small samples can't separate explanations.</strong> I needed the one case where two theories predict different things.</li>
-      <li><strong>Keep the wrong reasoning in the record.</strong> A retraction you can read is worth more than a clean history. It shows the next person which trap to avoid.</li>
-      <li><strong>Matching by ID beats matching by count.</strong> Equal totals can hide a lost event that's offset by a duplicate.</li>
+      <li>A log line is something to check. It isn't a finding.</li>
+      <li>The gap check took less time to build than any of the six fixes, and it showed I didn't need them.</li>
+      <li>My small samples couldn't tell the two explanations apart. I needed the one case where they predicted different results.</li>
+      <li>I keep wrong analysis in the record. Whoever reads it next, including me, can see what I got wrong and why.</li>
     </ul>
 
     <nav class="next-prev" aria-label="More projects">
-      <a href="/projects/okta-terraform-sigma/">&larr; Previous: identity as code</a>
-      <a href="/projects/least-privilege-alerting/">Next: least privilege and alerting &rarr;</a>
+      <a href="/projects/okta-terraform-sigma/">&larr; Previous: Okta in Terraform</a>
+      <a href="/projects/least-privilege-alerting/">Next: read-only monitoring &rarr;</a>
     </nav>
   </main>
   <footer class="site-footer">

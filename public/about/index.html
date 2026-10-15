@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>About · Lucas Gundry</title>
-  <meta name="description" content="About Lucas Gundry: security engineer focused on AI security and enterprise security.">
+  <meta name="description" content="About Lucas Gundry, a security engineer working on AI security and enterprise security.">
   <meta property="og:title" content="About · Lucas Gundry">
-  <meta property="og:description" content="About Lucas Gundry: security engineer focused on AI security and enterprise security.">
+  <meta property="og:description" content="About Lucas Gundry, a security engineer working on AI security and enterprise security.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,33 +26,31 @@
   </header>
   <main id="main" class="wrap">
 <h1>About</h1>
-    <p class="lede">I'm a security engineer focused on AI security and enterprise security: identity, detection, and running AI tools without handing them the keys.</p>
+    <p class="lede">I'm a security engineer. I work on AI security and enterprise security, mostly identity and detection.</p>
 
     <h2>How I work</h2>
-    <ul>
-      <li><strong>Least privilege, tested.</strong> I check a role by what it refuses, not only by what it can do.</li>
-      <li><strong>Code makes security decisions.</strong> AI is for summarizing, correlating, and explaining. It is never the only thing standing between a request and a consequential action.</li>
-      <li><strong>A control isn't verified until the logs show it.</strong> When the admin console and the audit log disagree, I trust the log.</li>
-      <li><strong>Measure before fixing.</strong> I write down what I think is wrong, build a way to check it, and keep the record even when I turn out to be wrong.</li>
-      <li><strong>Secrets stay out of everything:</strong> repos, prompts, logs, screenshots, and this site.</li>
-    </ul>
+    <p>I test access by trying things that should fail. If a monitoring account can delete backups, I want to find that out myself.</p>
+    <p>I keep security decisions in code. In my triage agent, the model summarizes and suggests. Code checks permissions, and I approve anything that changes an account.</p>
+    <p>I check the logs before I call something done. In one test the Okta console showed a permission as granted. The audit log showed it wasn't, and the log was right.</p>
+    <p>When something looks broken, I measure it before I fix it, and I keep my notes when I turn out to be wrong. <a href="/projects/event-loss-investigation/">One of my write-ups</a> is about that.</p>
+    <p>Secrets stay out of my repos, prompts and logs. Every push to this site runs gitleaks and a check for internal hostnames and IDs.</p>
 
     <h2>Skills and tools</h2>
     <div class="table-wrap">
       <table>
         <tbody>
-          <tr><th scope="row">Identity</th><td>Okta (Terraform provider, OAuth service apps, admin roles, network zones, MFA policy)</td></tr>
-          <tr><th scope="row">Detection</th><td>Elastic Security, Sigma and pySigma, threshold rules, test cases kept next to every rule</td></tr>
+          <tr><th scope="row">Identity</th><td>Okta: Terraform provider, OAuth service apps, admin roles, network zones, MFA policy</td></tr>
+          <tr><th scope="row">Detection</th><td>Elastic Security, Sigma and pySigma, threshold rules, test cases kept with each rule</td></tr>
           <tr><th scope="row">Infrastructure</th><td>Linux, Docker, systemd timers, Elasticsearch snapshots and restore tests, Tailscale</td></tr>
-          <tr><th scope="row">Automation</th><td>Python, Bash, Terraform, unit tests with fakes for every external service</td></tr>
-          <tr><th scope="row">AI security</th><td>Agent design with read-only tools, bounded runs, human approval for actions, prompt-injection testing</td></tr>
+          <tr><th scope="row">Automation</th><td>Python, Bash, Terraform, unit tests with fakes in place of outside services</td></tr>
+          <tr><th scope="row">AI security</th><td>Agents with read-only tools, limits on each run, approval before actions, prompt-injection tests</td></tr>
           <tr><th scope="row">Email and domain</th><td>Cloudflare DNS and Email Routing, DMARC monitoring</td></tr>
         </tbody>
       </table>
     </div>
 
     <h2>Resume</h2>
-    <p>My full resume is available on request. <a href="/contact/">Email me</a> and I'll send it.</p>
+    <p>My resume is available on request. <a href="/contact/">Email me</a> and I'll send it.</p>
   </main>
   <footer class="site-footer">
     <div class="wrap">

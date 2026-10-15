@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Projects · Lucas Gundry</title>
-  <meta name="description" content="Write-ups from my security homelab: identity as code, detection engineering, a log-loss investigation, and least-privilege monitoring.">
+  <meta name="description" content="Write-ups from my security homelab: Okta in Terraform with a tested detection, a log-loss investigation, and read-only monitoring with backup alerts.">
   <meta property="og:title" content="Projects · Lucas Gundry">
-  <meta property="og:description" content="Write-ups from my security homelab: identity as code, detection engineering, a log-loss investigation, and least-privilege monitoring.">
+  <meta property="og:description" content="Write-ups from my security homelab: Okta in Terraform with a tested detection, a log-loss investigation, and read-only monitoring with backup alerts.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,21 +26,21 @@
   </header>
   <main id="main" class="wrap">
 <h1>Projects</h1>
-    <p class="lede">Each write-up covers the problem, what I built, how I tested it, and what I learned, including where I got it wrong.</p>
+    <p class="lede">Each write-up covers the problem, what I built, how I tested it and what I learned. One of them is about a finding I got wrong.</p>
     <ul class="cards">
       <li><a class="card" href="/projects/okta-terraform-sigma/">
-        <h3>Identity as code, and a detection I tested both ways</h3>
-        <p>A fake company's Okta directory managed with Terraform, its audit log streamed into Elastic, and a failed-sign-in rule written in Sigma with true- and false-positive tests.</p>
+        <h3>Okta in Terraform, and a detection I tested both ways</h3>
+        <p>A fake company's Okta directory in Terraform, its audit log in Elastic, and a failed sign-in rule written in Sigma. I tested when it fires and when it stays quiet.</p>
         <ul class="tags"><li>Okta</li><li>Terraform</li><li>Sigma</li><li>Elastic</li></ul>
       </a></li>
       <li><a class="card" href="/projects/event-loss-investigation/">
-        <h3>The missing-logs investigation where I was wrong</h3>
-        <p>A log line said security events were being dropped. I wrote up a root cause, built a way to measure it, and the measurements disproved me.</p>
+        <h3>Missing logs that weren't missing</h3>
+        <p>A log line said security events were being dropped. I built a check to measure it, and the results disproved my own root cause.</p>
         <ul class="tags"><li>Investigation</li><li>Elastic Agent</li><li>Okta</li></ul>
       </a></li>
       <li><a class="card" href="/projects/least-privilege-alerting/">
-        <h3>Least privilege and alerts that tell me when they're broken</h3>
-        <p>A read-only monitoring role proven by what it's refused, and backup checks that alert on failure, on errors, and on silence.</p>
+        <h3>Read-only monitoring and backup alerts</h3>
+        <p>A monitoring role tested by what it's refused, and backup checks that email me on a failure or when they stop reporting.</p>
         <ul class="tags"><li>Least privilege</li><li>Monitoring</li><li>systemd</li><li>healthchecks.io</li></ul>
       </a></li>
     </ul>

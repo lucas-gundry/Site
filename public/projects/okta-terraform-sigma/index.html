@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Identity as code, and a detection I tested both ways · Lucas Gundry</title>
-  <meta name="description" content="Managing a company's Okta directory with Terraform, streaming its audit log into Elastic, and a Sigma detection tested for true and false positives.">
-  <meta property="og:title" content="Identity as code, and a detection I tested both ways · Lucas Gundry">
-  <meta property="og:description" content="Managing a company's Okta directory with Terraform, streaming its audit log into Elastic, and a Sigma detection tested for true and false positives.">
+  <title>Okta in Terraform, and a detection I tested both ways · Lucas Gundry</title>
+  <meta name="description" content="How I manage a fake company's Okta directory with Terraform, stream its audit log into Elastic, and test a Sigma detection for when it should and shouldn't fire.">
+  <meta property="og:title" content="Okta in Terraform, and a detection I tested both ways · Lucas Gundry">
+  <meta property="og:description" content="How I manage a fake company's Okta directory with Terraform, stream its audit log into Elastic, and test a Sigma detection for when it should and shouldn't fire.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,13 +26,13 @@
   </header>
   <main id="main" class="wrap">
 <a class="back" href="/projects/">&larr; All projects</a>
-    <span class="eyebrow">Identity &amp; detection</span>
-    <h1>Identity as code, and a detection I tested both ways</h1>
+    <span class="eyebrow">Identity and detection</span>
+    <h1>Okta in Terraform, and a detection I tested both ways</h1>
     <p class="meta">Okta · Terraform · Elastic · Sigma</p>
 
     <h2>Problem</h2>
-    <p>Identity is the front door of most companies. When people change the directory by hand, nobody reviews those changes and nothing records why they were made. A detection rule that has only ever been read, and never run against real events, might never fire, or might fire all day.</p>
-    <p>I wanted both halves done properly. The directory should be reviewable and repeatable. The first detection should be proven to fire on an attack and stay quiet on normal mistakes.</p>
+    <p>Most attacks on a company go through its identity provider. I wanted my fake company's Okta setup to be reviewable. When someone adds a user or changes a group by hand, nobody reviews it and there's no record of why.</p>
+    <p>I also wanted my first detection to be tested. A rule that has never run against real events can miss the attack. It can also fire so often that people stop reading it.</p>
 
     <h2>What I built</h2>
     <figure class="diagram">
@@ -80,29 +80,12 @@
 <polygon class="d-arrow" points="180.0,536.0 184.0,529.0 176.0,529.0"/>
 <text class="d-label" x="188.0" y="523.0" text-anchor="start">fires</text>
 </svg>
-      <figcaption>How a change flows: the HR file drives the directory, the directory's audit log feeds the SIEM, and the rule turns failures into alerts. Highlighted boxes are the controls.</figcaption>
+      <figcaption>How a change flows. The HR file drives the directory, the directory's audit log goes to the SIEM, and the rule turns failures into alerts. The highlighted boxes are the controls.</figcaption>
     </figure>
-
-    <h3>The directory, as code</h3>
-    <ul>
-      <li>A fake company of <strong>30 employees in 8 departments and 13 groups</strong>, built in Okta with Terraform.</li>
-      <li>A CSV file acts as the HR system of record. Joiners and leavers are edits to the CSV, then <code>terraform plan</code>, a review, and an apply. A change made by hand in Okta shows up as drift on the next plan.</li>
-      <li>Every plan is saved and reviewed before it's applied. Nothing gets applied without that review.</li>
-      <li>The admin API token works only from my home network, so a stolen copy is useless anywhere else. Admin MFA uses push with number matching, which defeats MFA-fatigue attacks.</li>
-    </ul>
-    <h3>The log pipeline</h3>
-    <ul>
-      <li>Okta's audit log streams into Elastic through Elastic Agent.</li>
-      <li>The collector signs in as its own OAuth service app with one read-only scope. It does <em>not</em> reuse Terraform's token, which can create and change users.</li>
-    </ul>
-    <h3>The detection</h3>
-    <ul>
-      <li>A Sigma rule that matches one failed Okta sign-in, converted to an Elastic query with a field-mapping pipeline.</li>
-      <li>An Elastic threshold rule on top of it: <strong>5 or more failures for one user in a 5-minute run</strong> suggests password guessing (MITRE ATT&amp;CK T1110.001).</li>
-      <li>The rule is deployed by a script that uses a narrowly scoped API key with a 90-day expiry.</li>
-    </ul>
-    <div class="callout"><p><strong>Why the threshold lives in Elastic, not Sigma:</strong> I tested the converters. The Lucene backend doesn't convert Sigma correlation rules. The ES|QL backend makes a different kind of rule with fixed time buckets. So the Sigma file holds the base rule, and the Elastic rule holds the count. The query the converter produces matches the deployed rule exactly.</p></div>
-
+    <p>The directory has 30 fake employees in 8 departments and 13 groups. A CSV file plays the HR system. To add or remove someone, I edit the CSV, run <code>terraform plan</code>, read the plan and then apply it. If anyone changes Okta by hand, the next plan shows the difference.</p>
+    <p>The Terraform API token only works from my home network. Admin sign-in uses Okta push with number matching, so an attacker can't send a stream of push prompts and hope I tap yes.</p>
+    <p>Okta's audit log goes into Elastic through Elastic Agent. The agent signs in as its own OAuth app with one scope, <code>okta.logs.read</code>. I didn't reuse the Terraform token for this, because that token can create and change users.</p>
+    <p>The rule looks for 5 or more failed sign-ins for one user within 5 minutes, which suggests someone is guessing a password (MITRE ATT&amp;CK T1110.001). I wrote the base query in Sigma and converted it for Elastic. The count lives in the Elastic rule. I tested two Sigma backends, and neither could produce a Kibana threshold rule.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>The converter&#x27;s output is the deployed query</strong><span>Sigma rule → Lucene, run with the field-mapping pipeline</span></figcaption>
       <pre><code>$ sigma convert -t lucene -p detections/pipelines/okta-ecs.yml \
@@ -115,8 +98,11 @@ event.dataset:okta.system AND (event.action:user.session.start AND event.outcome
 #   runs every 5 minutes, looks back 6</code></pre>
       <p class="note">Exact command and output, from the rule file's header. The threshold settings are summarized from the Elastic rule.</p>
     </figure>
+    <p>A script deploys the rule with an API key that can only manage detection rules. The key expires after 90 days.</p>
+
     <h2>How I tested it</h2>
-    <h3>Test cases kept next to the rule</h3>
+    <h3>Test cases next to the rule</h3>
+    <p>I keep test cases in a file next to the rule. Each case says whether the rule should fire, and why.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>Test cases file: why each case should or shouldn&#x27;t fire</strong><span>detections/okta/tests/*.cases.json (made-up events, real shape)</span></figcaption>
       <pre><code>fire     five failures for one user in four minutes
@@ -137,21 +123,10 @@ events in each case look like:
  &quot;source&quot;: {&quot;ip&quot;: &quot;&lt;documentation range&gt;&quot;}}</code></pre>
       <p class="note">The case names, expectations, and reasons come from the file. The events already use made-up users and documentation IP ranges. Here they're shortened, and the users and IPs are replaced.</p>
     </figure>
+    <p>The third case is a gap I know about. Password spraying tries many users once each, so a per-user count never reaches 5. Catching it needs a separate rule that groups by source IP.</p>
 
-    <div class="table-wrap"><table>
-      <thead><tr><th>Case</th><th>Expected</th><th>Why</th></tr></thead>
-      <tbody>
-        <tr><td>5 failures for one user in 4 minutes</td><td>Fires</td><td>True positive: guessing against one account</td></tr>
-        <tr><td>4 failures, then a success</td><td>Quiet</td><td>False positive avoided: someone who forgot their password</td></tr>
-        <tr><td>5 failures spread over 5 users</td><td>Quiet</td><td>This rule is per-user. Password spraying needs its own rule</td></tr>
-      </tbody>
-    </table></div>
-    <h3>Live test against real Okta events</h3>
-    <ul>
-      <li>One test user had 6 failed sign-ins in a burst. <strong>One alert, count 6.</strong></li>
-      <li>A second user had 4 failures, below the threshold. <strong>No alert.</strong></li>
-      <li>The first user had a second burst of 7 a few minutes later. <strong>A second alert, count 7.</strong> The bursts were counted separately (6 and 7, not 13).</li>
-    </ul>
+    <h3>Live test with real Okta events</h3>
+    <p>Then I ran it against real sign-ins with two test users. User A failed 6 times in 31 seconds and got one alert with a count of 6. User B failed 4 times and got no alert. A few minutes later, user A failed 7 more times and got a second alert with a count of 7. The rule counted the two bursts separately.</p>
     <section class="replay" aria-label="the live failed-sign-in test">
       <input type="radio" name="r1" id="r1-1" checked aria-label="Step 1 of 7">
       <input type="radio" name="r1" id="r1-2" aria-label="Step 2 of 7">
@@ -217,31 +192,30 @@ events in each case look like:
         </li>
         <li class="replay-step">
           <span class="when">what it doesn&#x27;t show · step 7 of 7</span>
-          <h4>The honest limit</h4>
+          <h4>What this test doesn't show</h4>
           <p>Both users were <em>staged</em>, so these were "can't sign in" failures, not real wrong passwords, and no lockout was possible. Testing a real wrong password and a lockout is next.</p>
           <div class="replay-nav"><label for="r1-6">&larr; Back</label><label for="r1-1">Start over &#8634;</label></div>
         </li>
       </ol>
     </section>
+    <p>Both test users were staged, so Okta saw them as users who can't sign in. These weren't real wrong passwords, and no lockout could happen. Testing a real wrong password and a lockout is my next step.</p>
+
     <h3>Revoking the collector's access</h3>
-    <ul>
-      <li>I deactivated the collector's Okta app on purpose. It was refused <strong>2 seconds</strong> later.</li>
-      <li>Turning the app back on didn't restore access: it had lost its admin role and its scope grant. The console still <em>showed</em> the scope as granted. Okta's log proved it wasn't.</li>
-      <li>Nothing was lost. The collector picked up from its bookmark and caught up on 31 events, with no gaps and no duplicates. I wrote a recovery checklist from it.</li>
-    </ul>
+    <p>I also tested what happens when the collector loses access. I deactivated its Okta app, and Okta refused it 2 seconds later. When I turned the app back on, access didn't come back. Deactivating had removed its admin role and its scope grant. The admin console still showed the scope as granted, but Okta's own log showed it wasn't.</p>
+    <p>After I restored both, the collector picked up from its bookmark. It caught up on 31 events with no gaps and no duplicates. I wrote a recovery checklist from what I found.</p>
 
     <h2>What I learned</h2>
     <ul>
-      <li><strong>Test the quiet cases too.</strong> A rule that fires on everything passes the "does it fire" test. The forgot-my-password case is what shows the threshold is right.</li>
-      <li><strong>Be honest about what a test covers.</strong> My test users were staged, not active, so these failures were "can't sign in" events, not real wrong passwords, and no lockout applied. Testing a real wrong password and a lockout is the next step.</li>
-      <li><strong>When the UI and the logs disagree, trust the logs.</strong></li>
-      <li><strong>Correlate on the stable user ID, not the login name.</strong> Names change, and logs keep the name a person had at the time of the event.</li>
-      <li><strong>Check your tools' limits early.</strong> The Sigma converter couldn't express the threshold. Finding that out on day one shaped where each piece lives.</li>
+      <li>The cases where the rule stays quiet matter as much as the one where it fires. Without the forgot-my-password case, I'd have no evidence the threshold is right.</li>
+      <li>I need to say what a test didn't cover. My failed sign-ins came from staged users, so I still haven't seen a real wrong password.</li>
+      <li>When the admin console and the audit log disagree, I go with the log.</li>
+      <li>Rules should match on the user's ID. I renamed my own admin account during setup, and the older events still show the old name.</li>
+      <li>It pays to check tool limits on day one. Learning early that Sigma couldn't express the threshold decided where each part of the rule lives.</li>
     </ul>
 
     <nav class="next-prev" aria-label="More projects">
       <a href="/projects/">All projects</a>
-      <a href="/projects/event-loss-investigation/">Next: the investigation where I was wrong &rarr;</a>
+      <a href="/projects/event-loss-investigation/">Next: missing logs that weren't missing &rarr;</a>
     </nav>
   </main>
   <footer class="site-footer">

@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lucas Gundry</title>
-  <meta name="description" content="Security engineer focused on AI security and enterprise security. I run a homelab to prove what I can build, and test it like someone will review it.">
+  <meta name="description" content="Security engineer working on AI security and enterprise security. I'm building a homelab to show the work, and I write up how I tested it.">
   <meta property="og:title" content="Lucas Gundry">
-  <meta property="og:description" content="Security engineer focused on AI security and enterprise security. I run a homelab to prove what I can build, and test it like someone will review it.">
+  <meta property="og:description" content="Security engineer working on AI security and enterprise security. I'm building a homelab to show the work, and I write up how I tested it.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,32 +26,34 @@
   </header>
   <main id="main" class="wrap">
 <span class="eyebrow">Security engineer</span>
-    <h1>I build security tools, then try to prove them wrong.</h1>
-    <p class="lede">I'm Lucas Gundry, a security engineer focused on AI security and enterprise security. I'm building a homelab to show the work: identity as code, a SIEM, detections, and an AI triage agent with guardrails.</p>
-    <p><a class="button" href="/projects/">See the projects</a></p>
+    <h1>I'm Lucas Gundry. I work on AI security and enterprise security.</h1>
+    <p class="lede">I'm building a homelab to show what I can do. It has a fake company in Okta, a SIEM in Elastic, a detection I've tested, and an AI triage agent I'm building with guardrails.</p>
+    <p><a class="button" href="/projects/">Read the write-ups</a></p>
 
-    <h2>What I'm working on</h2>
-    <p>The lab is a small, realistic company setup run on one mini PC. A fake shoe company gets attacked, my detections catch it, and an AI agent helps investigate, with a human approving every action that matters.</p>
+    <h2>The lab</h2>
+    <p>Everything runs on one mini PC at home. The story is a fake shoe company that gets attacked. My detections should catch the attack, and the agent helps me investigate it. The agent can read data and suggest what to do. I approve anything that would change an account.</p>
+    <p>Done so far:</p>
     <ul>
-      <li><strong>Identity as code:</strong> a 30-person company directory in Okta, managed with Terraform.</li>
-      <li><strong>SIEM and detections:</strong> Okta's audit log flowing into Elastic, with detection rules written in Sigma and tested both ways (it fires when it should, and stays quiet when it shouldn't).</li>
-      <li><strong>Reliability you can check:</strong> checks that alert me when logs go missing or a backup fails, and when the check itself stops running.</li>
-      <li><strong>AI, run securely:</strong> a triage agent with read-only tools, hard limits on each run, and prompt-injection tests.</li>
+      <li>An Okta directory for the fake company, with 30 users in 8 departments and 13 groups, all managed in Terraform.</li>
+      <li>Okta's audit log streams into Elastic. Every hour a separate check confirms each event arrived, matching by event ID.</li>
+      <li>One detection: 5 or more failed sign-ins for one user in 5 minutes. I tested when it should fire and when it shouldn't.</li>
+      <li>Nightly snapshots of the SIEM, with a daily check that emails me if a backup fails or the check stops reporting.</li>
+      <li>The first steps of the triage agent. It's capped at 15 tool calls per run, and its tests include prompt injection where the model follows the injected text.</li>
     </ul>
 
-    <h2>Featured write-ups</h2>
+    <h2>Write-ups</h2>
     <ul class="cards">
       <li><a class="card" href="/projects/okta-terraform-sigma/">
-        <h3>Identity as code, and a detection I tested both ways</h3>
-        <p>Okta managed with Terraform, and a failed-sign-in rule checked for true and false positives.</p>
+        <h3>Okta in Terraform, and a detection I tested both ways</h3>
+        <p>I manage a fake company's Okta with Terraform and wrote a failed sign-in rule. I tested the cases where it should fire and the cases where it shouldn't.</p>
       </a></li>
       <li><a class="card" href="/projects/event-loss-investigation/">
-        <h3>The missing-logs investigation where I was wrong</h3>
-        <p>I found what looked like silent log loss. Then I measured it, and retracted my own finding.</p>
+        <h3>Missing logs that weren't missing</h3>
+        <p>A log line said events were being dropped. I wrote up a root cause, then measured it and found I was wrong.</p>
       </a></li>
       <li><a class="card" href="/projects/least-privilege-alerting/">
-        <h3>Least privilege and alerts that tell me when they're broken</h3>
-        <p>Read-only roles tested by what they refuse, and backup alerts whose "didn't run" test caught my own mistake.</p>
+        <h3>Read-only monitoring and backup alerts</h3>
+        <p>A monitoring role I tested by what it's refused, and backup alerts. One alert test caught a config mistake I'd made.</p>
       </a></li>
     </ul>
   </main>

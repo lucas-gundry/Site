@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Least privilege and alerts that tell me when they're broken · Lucas Gundry</title>
-  <meta name="description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, and an alert test that caught my own wiring mistake.">
-  <meta property="og:title" content="Least privilege and alerts that tell me when they're broken · Lucas Gundry">
-  <meta property="og:description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, and an alert test that caught my own wiring mistake.">
+  <title>Read-only monitoring and backup alerts · Lucas Gundry</title>
+  <meta name="description" content="A read-only monitoring role tested by what it's refused, and backup and log checks that email me on a failure or when they stop reporting. One alert test caught my own config mistake.">
+  <meta property="og:title" content="Read-only monitoring and backup alerts · Lucas Gundry">
+  <meta property="og:description" content="A read-only monitoring role tested by what it's refused, and backup and log checks that email me on a failure or when they stop reporting. One alert test caught my own config mistake.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,13 +26,13 @@
   </header>
   <main id="main" class="wrap">
 <a class="back" href="/projects/">&larr; All projects</a>
-    <span class="eyebrow">Least privilege &amp; monitoring</span>
-    <h1>Least privilege and alerts that tell me when they're broken</h1>
+    <span class="eyebrow">Least privilege and monitoring</span>
+    <h1>Read-only monitoring and backup alerts</h1>
     <p class="meta">Elasticsearch roles · systemd · healthchecks.io · Python</p>
 
     <h2>Problem</h2>
-    <p>My SIEM takes a snapshot every night, and Okta events stream in all day. Either one could fail quietly. Nothing told me if a nightly backup failed or if security events went missing.</p>
-    <p>Any fix has two traps. The account that monitors backups shouldn't be able to delete or restore them. And an alert that runs on a schedule fails the worst way of all: it stops running and says nothing.</p>
+    <p>My SIEM takes a snapshot every night, and Okta events come in all day. Either one could fail without anyone noticing. Before this work, nothing told me if a nightly backup failed or if events went missing.</p>
+    <p>Two things make this harder. The account that checks backups shouldn't be able to delete or restore them. And a scheduled check can fail by not running at all. If it only alerts when it runs, I'd never hear about that.</p>
 
     <h2>What I built</h2>
     <figure class="diagram">
@@ -76,45 +76,31 @@
 <polygon class="d-arrow" points="287.0,288.0 291.0,281.0 283.0,281.0"/>
 <text class="d-label" x="295.0" y="229.0" text-anchor="start">alert</text>
 </svg>
-      <figcaption>Highlighted boxes are the controls. The check can only read. The wrapper decides what's allowed to leave. The outside service alerts on silence too.</figcaption>
+      <figcaption>The highlighted boxes are the controls. The check only has read access, and the wrapper decides what can leave the lab. healthchecks.io also alerts when no report arrives.</figcaption>
     </figure>
+    <h3>Separate accounts</h3>
+    <p>I use three Elastic accounts. A read-only analyst account does searches and status checks. A named admin account makes changes, and I'm the one who uses it. The built-in superuser is only for setup and emergencies. If a read-only check is refused, it reports the refusal. It never switches to a stronger account.</p>
+    <p>For backup monitoring, I gave the analyst role two more read-only privileges. One lets it see snapshot status and the other lets it see the snapshot policy.</p>
 
-    <h3>Separate accounts, each with one job</h3>
-    <ul>
-      <li>A <strong>read-only analyst account</strong> for searches and status checks. It has no writes, no deletes, and no security settings.</li>
-      <li>A named <strong>admin account</strong> for changes. I run anything that needs it myself.</li>
-      <li>The built-in superuser is for setup and break-glass only.</li>
-      <li>If a read-only check is refused, it reports the refusal. It never switches to a stronger account to get around it.</li>
-    </ul>
-    <p>To monitor backups, the analyst role got exactly two read-only privileges: view snapshot status and view the snapshot policy. That's all it got.</p>
-
-    <h3>Two scheduled checks, with three ways to alert</h3>
-    <ul>
-      <li>A <strong>gap check</strong> every hour: every Okta event ID must be in Elastic (see <a href="/projects/event-loss-investigation/">the investigation</a>).</li>
-      <li>A <strong>snapshot check</strong> daily, an hour after the nightly backup, scheduled in UTC so daylight saving can't shift it. Six rules, all decided in code:
-        <ol>
-          <li>The snapshot scheduler is running.</li>
-          <li>The policy exists and has the schedule the check expects. If the policy changes, the check fails safe.</li>
-          <li>A successful snapshot exists since the last one was due.</li>
-          <li>The newest snapshot fully succeeded, every shard.</li>
-          <li>No failure has been recorded since the last success.</li>
-          <li>The oldest snapshot is not past retention. If old snapshots aren't being deleted, the disk will fill silently.</li>
-        </ol>
-      </li>
-      <li>Each check reports to <strong>healthchecks.io</strong>, a dead man's switch. It emails me on a failure, <em>or when no report arrives on time</em>.</li>
-      <li>Only one line leaves the machine: a status word, rule numbers, and counts. No hostnames, snapshot names, or event data. The wrapper refuses to send anything else.</li>
-      <li>Each job loads only its own ping URL, from its own file, readable only by its owner.</li>
-    </ul>
-    <div class="callout"><p><strong>A subtle one, rule 3:</strong> "the newest snapshot is under 26 hours old" sounds right, but it's wrong. When the check runs an hour after the backup, a missed night leaves yesterday's snapshot only 25 hours old, so that rule would pass. The check asks a different question: is there a success since the last time one was <em>due</em>?</p></div>
+    <h3>Two scheduled checks</h3>
+    <p>The gap check from the <a href="/projects/event-loss-investigation/">previous write-up</a> runs every hour. The snapshot check runs once a day, an hour after the nightly snapshot. I scheduled it in UTC so daylight saving time doesn't move it. It fails if any of these rules fail:</p>
+    <ol>
+      <li>The snapshot scheduler is running.</li>
+      <li>The policy exists and has the schedule the check expects. If someone changes the policy, the check fails until I update it.</li>
+      <li>There's a successful snapshot since the last one was due.</li>
+      <li>The newest snapshot succeeded on every shard.</li>
+      <li>No failure has been recorded since the last success.</li>
+      <li>The oldest snapshot is within retention. If old snapshots stop being deleted, the disk fills up without warning.</li>
+    </ol>
+    <p>Both checks report to healthchecks.io. It emails me when a check reports a failure, and also when a report doesn't arrive on time.</p>
+    <p>Only one short line leaves the lab: a status word, rule numbers and counts. It never includes hostnames, snapshot names or event data, and the wrapper script refuses to send anything outside that format. Each check reads its ping URL from its own file, and only my user can read those files.</p>
+    <div class="callout"><p><strong>Rule 3 is easy to get wrong.</strong> "The newest snapshot is less than 26 hours old" sounds right. But the check runs an hour after the backup. If a night is missed, yesterday's snapshot is only 25 hours old, so that rule would pass. My check asks whether there's been a successful snapshot since the last one was due.</p></div>
 
     <h2>How I tested it</h2>
-    <h3>The role, tested by what it refuses</h3>
-    <ul>
-      <li>A check script tests the allowed reads <em>and</em> the refused actions: create, delete, and restore a snapshot; change, delete, or run the policy. Running the policy now is another way to create a snapshot, so it has to be refused too.</li>
-      <li>The refused actions target a repository and policy that don't exist. A "not found" answer would mean the action was <em>allowed</em> to get that far, so it fails the check. Only a "forbidden" passes.</li>
-      <li><strong>Before the change: 17 of 19.</strong> The two new reads were refused, which proves the checks catch missing access. <strong>After: 19 of 19.</strong> Every write and restore was still refused.</li>
-    </ul>
-
+    <h3>The role</h3>
+    <p>A script tests what the analyst account can read and what it's refused. The refused list covers creating, deleting and restoring snapshots, and changing, deleting or running the snapshot policy. Running the policy is another way to create a snapshot, so it has to be blocked too.</p>
+    <p>The refusal tests target a repository and a policy that don't exist. If the account were allowed, Elasticsearch would answer 404, and the script counts that as a failure. Only a 403 passes.</p>
+    <p>Before the change, 17 of 19 checks passed. The two failures were the new reads, which showed the script catches missing access. After the change all 19 passed, and every write and restore was still refused.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>Before the change: 17 of 19</strong><span>analyst-check.sh, rebuilt from its output format</span></figcaption>
       <pre><code>== Allowed
@@ -159,17 +145,19 @@ PASS  wrong password                                 HTTP 401
 All checks passed.</code></pre>
       <p class="note">Same method as above. "404 = can delete" means the test targets something that doesn't exist, so only a 403 passes.</p>
     </figure>
-    <h3>The four alert states, tested live</h3>
-    <p>For each test I watched the machine's own log and checked what reached my inbox.</p>
+
+    <h3>The four alert states</h3>
+    <p>For each test I watched the lab's own log and checked my inbox.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>State</th><th>How I caused it</th><th>Gap check</th><th>Snapshot check</th></tr></thead>
       <tbody>
         <tr><td><strong>OK</strong></td><td>A normal run</td><td>Reported up, no email (correct)</td><td>Reported up</td></tr>
         <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Rerun pending (see below)</td></tr>
-        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't complete</td><td>9 tries over 4 minutes, then a down email, then up</td><td>Rerun pending (see below)</td></tr>
-        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Caught a real bug (below); rerun in progress</td></tr>
+        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't finish</td><td>9 tries over 4 minutes, then a down email, then up</td><td>Rerun pending (see below)</td></tr>
+        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Caught a real bug (below). Rerun in progress</td></tr>
       </tbody>
     </table></div>
+    <p>I also ran the real snapshot check with a made-up password. It got a 401, exited with an error and sent nothing. An authentication error shouldn't turn into a status report.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>A real run, and what left the machine</strong><span>journal, 2026-10-15; host, process ID and snapshot name replaced</span></figcaption>
       <pre><code>Oct 15 13:44:11 lab-server snapshot-check-run.sh: SLM:       RUNNING; policy nightly found
@@ -189,11 +177,11 @@ ok rules=- state=SUCCESS shards=103/103 age_min=734 count=12 oldest_days=10 trie
 <span class="t-ok">RESULT: ok (okta=56 elastic=56 ...)</span>                         exit 0           → up</code></pre>
       <p class="note">From the gap check's test record. The trailing "..." fields are in the record too.</p>
     </figure>
-    <p>One more case: I ran the real snapshot check with a made-up password. It got a 401, exited with an error, and sent <em>nothing</em>. An authentication error with no summary shouldn't turn into a report.</p>
 
-    <h3>What went wrong on the way</h3>
-    <p><strong>The "didn't run" test caught a real mistake.</strong> I stopped the snapshot check's timer and waited for the missing-report email. It never came. The snapshot check's settings file held the <em>gap check's</em> ping URL, so every snapshot report had gone to the gap check's monitor. That monitor gets an "ok" every hour from the gap check, so a skipped snapshot run could never make it go down. The earlier failure emails were real, but they arrived on the wrong monitor.</p>
-    <p>The wrapper had checked the URL's format, its file permissions, and its owner, and the wrong URL passed all three. Now it also refuses to run if its URL points at the same monitor as the gap check's. Three new tests cover that, and they fail if the guard is removed. I'm rerunning the alert tests on the right monitor.</p>
+    <h3>What went wrong</h3>
+    <p>The didn't-run test found a real mistake. I stopped the snapshot check's timer and waited for the missing-report email. It never came.</p>
+    <p>The snapshot check's settings file had the gap check's ping URL in it. Every snapshot report since setup had gone to the gap check's monitor. That monitor gets an "ok" every hour from the gap check, so a skipped snapshot run could never set it off. The failure emails from my earlier tests were real, but they came from the wrong monitor.</p>
+    <p>The wrapper checked the URL's format, the file's permissions and the file's owner. The wrong URL passed all of them. Now the wrapper also refuses to run if its URL points at the gap check's monitor. I added 3 tests for that, and they fail if I take the guard out. I'm rerunning the alert tests on the right monitor.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>The new guard, and its tests</strong><span>wrapper output and unit tests, 2026-10-15</span></figcaption>
       <pre><code><span class="t-bad">ERROR: SNAPCHECK_PING_URL is the gap check's URL (same check ID as &lt;gap check settings file&gt;); use the snapshot check's own URL</span>
@@ -207,8 +195,7 @@ Ran 84 tests in 57.221s
 <span class="t-bad">FAILED (failures=3)</span></code></pre>
       <p class="note">The error message is the wrapper's own text with the settings-file path replaced. The test results are from the run on 2026-10-15.</p>
     </figure>
-    <p>Earlier, the first two clean runs failed with "missing settings file". I had created it on the wrong machine. The wrapper refused to run and sent nothing, as designed.</p>
-
+    <p>Earlier in setup, the first two clean runs failed with "missing settings file". I had created the file on the wrong machine. The wrapper refused to run and sent nothing, which is what it's meant to do.</p>
     <section class="replay" aria-label="the test that caught my mistake">
       <input type="radio" name="r3" id="r3-1" checked aria-label="Step 1 of 6">
       <input type="radio" name="r3" id="r3-2" aria-label="Step 2 of 6">
@@ -268,17 +255,18 @@ guard removed: FAILED (failures=3)</pre>
         </li>
       </ol>
     </section>
+
     <h2>What I learned</h2>
     <ul>
-      <li><strong>Prove least privilege by what's refused.</strong> A role that passes every read test might still be able to delete your backups.</li>
-      <li><strong>Make "allowed" impossible to mistake for "refused".</strong> Testing against things that don't exist turns a silent pass into a visible failure.</li>
-      <li><strong>Silence is a failure mode.</strong> A check that only alerts when it runs can't tell you it stopped. An outside dead man's switch can, but only if each job reports to its own monitor. Test the "didn't run" case. It's the one that caught my mistake.</li>
-      <li><strong>Choose what leaves the network.</strong> The alert body is a short, fixed format, so monitoring doesn't leak internal names.</li>
-      <li><strong>Know the limits.</strong> The tests prove the alert path, not a real backup failure. Making one would need admin changes. A machine that is off and one that skipped a run look the same: both are silence.</li>
+      <li>I test a role by what it's refused. A role can pass every read test and still be able to delete backups.</li>
+      <li>Refusal tests need to fail loudly when access is allowed. Pointing them at things that don't exist does that.</li>
+      <li>A check that only alerts when it runs can't tell me it stopped. An outside service can, as long as each check reports to its own monitor.</li>
+      <li>The didn't-run test is the one that caught my mistake.</li>
+      <li>These tests prove the alert path. They don't prove a real backup failure gets caught, because causing one needs admin changes. They also can't tell a machine that's off from a check that skipped a run. Both look like silence.</li>
     </ul>
 
     <nav class="next-prev" aria-label="More projects">
-      <a href="/projects/event-loss-investigation/">&larr; Previous: the investigation</a>
+      <a href="/projects/event-loss-investigation/">&larr; Previous: missing logs</a>
       <a href="/projects/">All projects</a>
     </nav>
   </main>
