@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects · Lucas Gundry</title>
+  <meta name="description" content="Write-ups from my security homelab: identity as code, detection engineering, a log-loss investigation, and least-privilege monitoring.">
+  <meta property="og:title" content="Projects · Lucas Gundry">
+  <meta property="og:description" content="Write-ups from my security homelab: identity as code, detection engineering, a log-loss investigation, and least-privilege monitoring.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<h1>Projects</h1>
+    <p class="lede">Each write-up covers the problem, what I built, how I tested it, and what I learned, including where I got it wrong.</p>
+    <ul class="cards">
+      <li><a class="card" href="/projects/okta-terraform-sigma/">
+        <h3>Identity as code, and a detection I tested both ways</h3>
+        <p>A fake company's Okta directory managed with Terraform, its audit log streamed into Elastic, and a failed-sign-in rule written in Sigma with true- and false-positive tests.</p>
+        <ul class="tags"><li>Okta</li><li>Terraform</li><li>Sigma</li><li>Elastic</li></ul>
+      </a></li>
+      <li><a class="card" href="/projects/event-loss-investigation/">
+        <h3>The missing-logs investigation where I was wrong</h3>
+        <p>A log line said security events were being dropped. I wrote up a root cause, built a way to measure it, and the measurements disproved me.</p>
+        <ul class="tags"><li>Investigation</li><li>Elastic Agent</li><li>Okta</li></ul>
+      </a></li>
+      <li><a class="card" href="/projects/least-privilege-alerting/">
+        <h3>Least privilege and alerts that tell me when they're broken</h3>
+        <p>A read-only monitoring role proven by what it's refused, and backup checks that alert on failure, on errors, and on silence.</p>
+        <ul class="tags"><li>Least privilege</li><li>Monitoring</li><li>systemd</li><li>healthchecks.io</li></ul>
+      </a></li>
+    </ul>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>

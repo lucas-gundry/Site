@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lucas Gundry</title>
+  <meta name="description" content="Security engineer focused on AI security and enterprise security. I run a homelab to prove what I can build, and test it like someone will review it.">
+  <meta property="og:title" content="Lucas Gundry">
+  <meta property="og:description" content="Security engineer focused on AI security and enterprise security. I run a homelab to prove what I can build, and test it like someone will review it.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/" aria-current="page">Home</a>
+        <a href="/projects/">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<span class="eyebrow">Security engineer</span>
+    <h1>I build security tools, then try to prove them wrong.</h1>
+    <p class="lede">I'm Lucas Gundry, a security engineer focused on AI security and enterprise security. I'm building a homelab to show the work: identity as code, a SIEM, detections, and an AI triage agent with guardrails.</p>
+    <p><a class="button" href="/projects/">See the projects</a></p>
+
+    <h2>What I'm working on</h2>
+    <p>The lab is a small, realistic company setup run on one mini PC. A fake shoe company gets attacked, my detections catch it, and an AI agent helps investigate, with a human approving every action that matters.</p>
+    <ul>
+      <li><strong>Identity as code:</strong> a 30-person company directory in Okta, managed with Terraform.</li>
+      <li><strong>SIEM and detections:</strong> Okta's audit log flowing into Elastic, with detection rules written in Sigma and tested both ways (it fires when it should, and stays quiet when it shouldn't).</li>
+      <li><strong>Reliability you can check:</strong> checks that alert me when logs go missing or a backup fails, and when the check itself stops running.</li>
+      <li><strong>AI, run securely:</strong> a triage agent with read-only tools, hard limits on each run, and prompt-injection tests.</li>
+    </ul>
+
+    <h2>Featured write-ups</h2>
+    <ul class="cards">
+      <li><a class="card" href="/projects/okta-terraform-sigma/">
+        <h3>Identity as code, and a detection I tested both ways</h3>
+        <p>Okta managed with Terraform, and a failed-sign-in rule checked for true and false positives.</p>
+      </a></li>
+      <li><a class="card" href="/projects/event-loss-investigation/">
+        <h3>The missing-logs investigation where I was wrong</h3>
+        <p>I found what looked like silent log loss. Then I measured it, and retracted my own finding.</p>
+      </a></li>
+      <li><a class="card" href="/projects/least-privilege-alerting/">
+        <h3>Least privilege and alerts that tell me when they're broken</h3>
+        <p>Read-only roles tested by what they refuse, and backup alerts with every alert state tested live.</p>
+      </a></li>
+    </ul>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>

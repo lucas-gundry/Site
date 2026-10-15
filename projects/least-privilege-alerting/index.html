@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Least privilege and alerts that tell me when they're broken · Lucas Gundry</title>
+  <meta name="description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, with every alert state tested live.">
+  <meta property="og:title" content="Least privilege and alerts that tell me when they're broken · Lucas Gundry">
+  <meta property="og:description" content="A read-only monitoring role proven by what it is refused, and backup and log-pipeline checks that alert on failure, on errors, and on silence, with every alert state tested live.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Least privilege &amp; monitoring</span>
+    <h1>Least privilege and alerts that tell me when they're broken</h1>
+    <p class="meta">Elasticsearch roles · systemd · healthchecks.io · Python</p>
+
+    <h2>Problem</h2>
+    <p>My SIEM takes a snapshot every night, and Okta events stream in all day. Either one could fail quietly. Nothing told me if a nightly backup failed or if security events went missing.</p>
+    <p>Any fix has two traps. The account that monitors backups shouldn't be able to delete or restore them. And an alert that runs on a schedule fails the worst way of all: it stops running and says nothing.</p>
+
+    <h2>What I built</h2>
+    <h3>Separate accounts, each with one job</h3>
+    <ul>
+      <li>A <strong>read-only analyst account</strong> for searches and status checks. It has no writes, no deletes, and no security settings.</li>
+      <li>A named <strong>admin account</strong> for changes. I run anything that needs it myself.</li>
+      <li>The built-in superuser is for setup and break-glass only.</li>
+      <li>If a read-only check is refused, it reports the refusal. It never switches to a stronger account to get around it.</li>
+    </ul>
+    <p>To monitor backups, the analyst role got exactly two read-only privileges: view snapshot status and view the snapshot policy. That's all it got.</p>
+
+    <h3>Two scheduled checks, with three ways to alert</h3>
+    <ul>
+      <li>A <strong>gap check</strong> every hour: every Okta event ID must be in Elastic (see <a href="/projects/event-loss-investigation/">the investigation</a>).</li>
+      <li>A <strong>snapshot check</strong> daily, an hour after the nightly backup, scheduled in UTC so daylight saving can't shift it. Six rules, all decided in code:
+        <ol>
+          <li>The snapshot scheduler is running.</li>
+          <li>The policy exists and has the schedule the check expects. If the policy changes, the check fails safe.</li>
+          <li>A successful snapshot exists since the last one was due.</li>
+          <li>The newest snapshot fully succeeded, every shard.</li>
+          <li>No failure has been recorded since the last success.</li>
+          <li>The oldest snapshot is not past retention. If old snapshots aren't being deleted, the disk will fill silently.</li>
+        </ol>
+      </li>
+      <li>Each check reports to <strong>healthchecks.io</strong>, a dead man's switch. It emails me on a failure, <em>or when no report arrives on time</em>.</li>
+      <li>Only one line leaves the machine: a status word, rule numbers, and counts. No hostnames, snapshot names, or event data. The wrapper refuses to send anything else.</li>
+      <li>Each job loads only its own ping URL, from its own file, readable only by its owner.</li>
+    </ul>
+    <div class="callout"><p><strong>A subtle one, rule 3:</strong> "the newest snapshot is under 26 hours old" sounds right, but it's wrong. When the check runs an hour after the backup, a missed night leaves yesterday's snapshot only 25 hours old, so that rule would pass. The check asks a different question: is there a success since the last time one was <em>due</em>?</p></div>
+
+    <h2>How I tested it</h2>
+    <h3>The role, tested by what it refuses</h3>
+    <ul>
+      <li>A check script tests the allowed reads <em>and</em> the refused actions: create, delete, and restore a snapshot; change, delete, or run the policy. Running the policy now is another way to create a snapshot, so it has to be refused too.</li>
+      <li>The refused actions target a repository and policy that don't exist. A "not found" answer would mean the action was <em>allowed</em> to get that far, so it fails the check. Only a "forbidden" passes.</li>
+      <li><strong>Before the change: 17 of 19.</strong> The two new reads were refused, which proves the checks catch missing access. <strong>After: 19 of 19.</strong> Every write and restore was still refused.</li>
+    </ul>
+
+    <h3>The four alert states, tested live</h3>
+    <p>For each test I watched the machine's own log and checked what reached my inbox.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>State</th><th>How I caused it</th><th>Gap check</th><th>Snapshot check</th></tr></thead>
+      <tbody>
+        <tr><td><strong>OK</strong></td><td>A normal run</td><td>Reported up, no email (correct)</td><td>Reported up, no email (correct)</td></tr>
+        <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Down email naming the failed rule, then up</td></tr>
+        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't complete</td><td>9 tries over 4 minutes, then a down email, then up</td><td>9 tries over 4 minutes, then a down email, then up</td></tr>
+        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Missed run confirmed in the log; on restart the missed check ran at once and reported up</td></tr>
+      </tbody>
+    </table></div>
+    <p>One more case: I ran the real snapshot check with a made-up password. It got a 401, exited with an error, and sent <em>nothing</em>. An authentication error with no summary shouldn't turn into a report.</p>
+
+    <h3>What went wrong on the way</h3>
+    <p>The first two clean runs failed with "missing settings file". I had created it on the wrong machine. The wrapper refused to run and sent nothing, as designed. The setup command has a hostname check for exactly this mistake.</p>
+
+    <h2>What I learned</h2>
+    <ul>
+      <li><strong>Prove least privilege by what's refused.</strong> A role that passes every read test might still be able to delete your backups.</li>
+      <li><strong>Make "allowed" impossible to mistake for "refused".</strong> Testing against things that don't exist turns a silent pass into a visible failure.</li>
+      <li><strong>Silence is a failure mode.</strong> A check that only alerts when it runs can't tell you it stopped. An outside dead man's switch can.</li>
+      <li><strong>Choose what leaves the network.</strong> The alert body is a short, fixed format, so monitoring doesn't leak internal names.</li>
+      <li><strong>Know the limits.</strong> The tests prove the alert path, not a real backup failure. Making one would need admin changes. A machine that is off and one that skipped a run look the same: both are silence.</li>
+    </ul>
+
+    <nav class="next-prev" aria-label="More projects">
+      <a href="/projects/event-loss-investigation/">&larr; Previous: the investigation</a>
+      <a href="/projects/">All projects</a>
+    </nav>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>

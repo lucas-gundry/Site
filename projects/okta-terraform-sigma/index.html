@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Identity as code, and a detection I tested both ways · Lucas Gundry</title>
+  <meta name="description" content="Managing a company's Okta directory with Terraform, streaming its audit log into Elastic, and a Sigma detection tested for true and false positives.">
+  <meta property="og:title" content="Identity as code, and a detection I tested both ways · Lucas Gundry">
+  <meta property="og:description" content="Managing a company's Okta directory with Terraform, streaming its audit log into Elastic, and a Sigma detection tested for true and false positives.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Identity &amp; detection</span>
+    <h1>Identity as code, and a detection I tested both ways</h1>
+    <p class="meta">Okta · Terraform · Elastic · Sigma</p>
+
+    <h2>Problem</h2>
+    <p>Identity is the front door of most companies. When people change the directory by hand, nobody reviews those changes and nothing records why they were made. A detection rule that has only ever been read, and never run against real events, might never fire, or might fire all day.</p>
+    <p>I wanted both halves done properly. The directory should be reviewable and repeatable. The first detection should be proven to fire on an attack and stay quiet on normal mistakes.</p>
+
+    <h2>What I built</h2>
+    <h3>The directory, as code</h3>
+    <ul>
+      <li>A fake company of <strong>30 employees in 8 departments and 13 groups</strong>, built in Okta with Terraform.</li>
+      <li>A CSV file acts as the HR system of record. Joiners and leavers are edits to the CSV, then <code>terraform plan</code>, a review, and an apply. A change made by hand in Okta shows up as drift on the next plan.</li>
+      <li>Every plan is saved and reviewed before it's applied. Nothing gets applied without that review.</li>
+      <li>The admin API token works only from my home network, so a stolen copy is useless anywhere else. Admin MFA uses push with number matching, which defeats MFA-fatigue attacks.</li>
+    </ul>
+    <h3>The log pipeline</h3>
+    <ul>
+      <li>Okta's audit log streams into Elastic through Elastic Agent.</li>
+      <li>The collector signs in as its own OAuth service app with one read-only scope. It does <em>not</em> reuse Terraform's token, which can create and change users.</li>
+    </ul>
+    <h3>The detection</h3>
+    <ul>
+      <li>A Sigma rule that matches one failed Okta sign-in, converted to an Elastic query with a field-mapping pipeline.</li>
+      <li>An Elastic threshold rule on top of it: <strong>5 or more failures for one user in a 5-minute run</strong> suggests password guessing (MITRE ATT&amp;CK T1110.001).</li>
+      <li>The rule is deployed by a script that uses a narrowly scoped API key with a 90-day expiry.</li>
+    </ul>
+    <div class="callout"><p><strong>Why the threshold lives in Elastic, not Sigma:</strong> I tested the converters. The Lucene backend doesn't convert Sigma correlation rules. The ES|QL backend makes a different kind of rule with fixed time buckets. So the Sigma file holds the base rule, and the Elastic rule holds the count. The query the converter produces matches the deployed rule exactly.</p></div>
+
+    <h2>How I tested it</h2>
+    <h3>Test cases kept next to the rule</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Case</th><th>Expected</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>5 failures for one user in 4 minutes</td><td>Fires</td><td>True positive: guessing against one account</td></tr>
+        <tr><td>4 failures, then a success</td><td>Quiet</td><td>False positive avoided: someone who forgot their password</td></tr>
+        <tr><td>5 failures spread over 5 users</td><td>Quiet</td><td>This rule is per-user. Password spraying needs its own rule</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Live test against real Okta events</h3>
+    <ul>
+      <li>One test user had 6 failed sign-ins in a burst. <strong>One alert, count 6.</strong></li>
+      <li>A second user had 4 failures, below the threshold. <strong>No alert.</strong></li>
+      <li>The first user had a second burst of 7 a few minutes later. <strong>A second alert, count 7.</strong> The bursts were counted separately (6 and 7, not 13).</li>
+    </ul>
+    <h3>Revoking the collector's access</h3>
+    <ul>
+      <li>I deactivated the collector's Okta app on purpose. It was refused <strong>2 seconds</strong> later.</li>
+      <li>Turning the app back on didn't restore access: it had lost its admin role and its scope grant. The console still <em>showed</em> the scope as granted. Okta's log proved it wasn't.</li>
+      <li>Nothing was lost. The collector picked up from its bookmark and caught up on 31 events, with no gaps and no duplicates. I wrote a recovery checklist from it.</li>
+    </ul>
+
+    <h2>What I learned</h2>
+    <ul>
+      <li><strong>Test the quiet cases too.</strong> A rule that fires on everything passes the "does it fire" test. The forgot-my-password case is what shows the threshold is right.</li>
+      <li><strong>Be honest about what a test covers.</strong> My test users were staged, not active, so these failures were "can't sign in" events, not real wrong passwords, and no lockout applied. Testing a real wrong password and a lockout is the next step.</li>
+      <li><strong>When the UI and the logs disagree, trust the logs.</strong></li>
+      <li><strong>Correlate on the stable user ID, not the login name.</strong> Names change, and logs keep the name a person had at the time of the event.</li>
+      <li><strong>Check your tools' limits early.</strong> The Sigma converter couldn't express the threshold. Finding that out on day one shaped where each piece lives.</li>
+    </ul>
+
+    <nav class="next-prev" aria-label="More projects">
+      <a href="/projects/">All projects</a>
+      <a href="/projects/event-loss-investigation/">Next: the investigation where I was wrong &rarr;</a>
+    </nav>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>
