@@ -31,11 +31,11 @@ for p in "${patterns[@]}"; do
   if [ -n "$hits" ]; then echo "FAIL private detail /$p/:"; echo "$hits"; fail=1; fi
 done
 
-# Internal links: every href="/..." must resolve to a file.
-for f in $(echo "$files" | grep '\.html$'); do
+# Internal links: every href="/..." must resolve to a file under public/.
+for f in $(echo "$files" | grep '^public/.*\.html$'); do
   for h in $(grep -oE 'href="/[^"#]*"' "$f" | sed -E 's/href="\/(.*)"/\1/'); do
     t="$h"; [ -z "$t" ] || [[ "$t" == */ ]] && t="${t}index.html"
-    [ -e "$t" ] || { echo "FAIL broken link in $f: /$h"; fail=1; }
+    [ -e "public/$t" ] || { echo "FAIL broken link in $f: /$h"; fail=1; }
   done
 done
 

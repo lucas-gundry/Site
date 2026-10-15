@@ -1,0 +1,15 @@
+// Cloudflare Worker "lucasgundry": static assets only, no Worker code.
+// Workers Builds: main runs `npx wrangler deploy` (production); other
+// branches upload a version with a preview URL.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lucasgundry",
+  "compatibility_date": "2026-10-15",
+  "assets": {
+    "directory": "./public",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "workers_dev": true,
+  "preview_urls": true
+}
