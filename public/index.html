@@ -38,7 +38,7 @@
       <li>Okta's audit log streams into Elastic. Every hour a separate check confirms each event arrived, matching by event ID.</li>
       <li>One detection: 5 or more failed sign-ins for one user in 5 minutes. I tested when it should fire and when it shouldn't.</li>
       <li>Nightly snapshots of the SIEM, with a daily check that emails me if a backup fails or the check stops reporting.</li>
-      <li>The first steps of the triage agent. It's capped at 15 tool calls per run, and its tests assume the model obeys injected text, and check that code rejects what it asks for.</li>
+      <li>The first steps of the triage agent. It's capped at 15 tool calls per run. Its tests assume the model obeys injected text, then check that code rejects what it asks for.</li>
     </ul>
 
     <h2>Write-ups</h2>
