@@ -85,7 +85,7 @@
     <p>Terraform has a seatbelt too: it's told which account it may touch, and it refuses to run anywhere else. The account ID comes from a file that Git ignores. It isn't a secret, but it identifies a real account, so it stays out of the repo.</p>
 
     <h2>How I tested it</h2>
-    <p>I built this with Claude Code as a pair. I approved every plan before it was applied, and from step 2 on I ran every apply myself.</p>
+    <p>I reviewed every plan; Claude ran the first apply, and I ran every apply after that.</p>
     <h3>Step 1: plan to a file, apply that file</h3>
     <p>A first bucket, private and encrypted. New S3 buckets are already both by default, but I wrote it down anyway, so a reviewer or a scanner can see it, and a future default change at AWS can't quietly undo it. I saved the plan to a file and applied that exact file, then read the bucket's settings straight from AWS instead of trusting "Apply complete". The teardown got the same treatment: a saved destroy plan, applied, then a check that AWS answered 404.</p>
 
