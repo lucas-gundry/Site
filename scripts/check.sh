@@ -17,8 +17,12 @@ else
 fi
 
 # Private details: Okta org, lab hostnames and container names, account
-# names, IP addresses, UUIDs (event IDs), ping URLs, personal email.
+# names, IP addresses, UUIDs (event IDs), ping URLs, personal email, and
+# AWS identifiers (12-digit account IDs, the Identity Center start URL,
+# the Terraform state bucket's real name). Patterns are shapes, never the
+# real values, so this file can't leak them itself.
 patterns=(
+  '\b[0-9]{12}\b' '\bd-[0-9a-z]{10}\b' 'awsapps\.com' 'bionic-tfstate-[0-9a-f]{6,}'
   'integrator-[0-9]+' 'okta(preview)?\.com/' '-admin\.okta'
   '\blabby\b' '\bes01\b' 'elastic-es01' 'fleet-server' 'kibana_rules'
   '\blab-(analyst|admin)\b' 'analyst-read' '\bdaddio\b' '\belastic_env\b' '_env\b'
