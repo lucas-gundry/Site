@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terraform on AWS, with the guardrails tested · Lucas Gundry</title>
+  <meta name="description" content="How I set up Terraform on AWS with short-lived credentials, reviewed plans, a locked remote state bucket, and a scanner whose findings are each fixed or accepted in writing.">
+  <meta property="og:title" content="Terraform on AWS, with the guardrails tested · Lucas Gundry">
+  <meta property="og:description" content="How I set up Terraform on AWS with short-lived credentials, reviewed plans, a locked remote state bucket, and a scanner whose findings are each fixed or accepted in writing.">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Cloud infrastructure as code</span>
+    <h1>Terraform on AWS, with the guardrails tested</h1>
+    <p class="meta">AWS · Terraform · IAM Identity Center · S3 · Checkov</p>
+
+    <h2>Problem</h2>
+    <p>Infrastructure code is only as safe as the way it runs. If Terraform runs with a long-lived access key, a leaked laptop is a leaked cloud account. If it applies changes nobody read, the review step is decoration. And its state file, the record of everything it built, can hold secrets.</p>
+    <p>Before building my lab's real AWS layer, I wanted the Terraform workflow itself to be something I'd defend in a review. I did it in four small steps, on cheap S3 buckets, and tested each guardrail instead of assuming it worked.</p>
+
+    <h2>What I built</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 360 494" role="img" aria-labelledby="t d" xmlns="http://www.w3.org/2000/svg"><title>How a Terraform change runs</title><desc>I sign in with SSO and MFA and get temporary credentials for the lab account only. Terraform refuses any other account, and the code is scanned first. A plan is saved to a file, reviewed, and that exact file is applied. The result is checked with a separate read from AWS, and the state is kept in a versioned, encrypted, private bucket with a lock.</desc>
+<rect class="d-node" x="30" y="8" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="29" text-anchor="middle">Me, signed in with SSO + MFA</text>
+<text class="d-sub" x="180.0" y="45" text-anchor="middle">no access keys anywhere</text>
+<rect class="d-key" x="30" y="88" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="109" text-anchor="middle">Temporary role credentials</text>
+<text class="d-sub" x="180.0" y="125" text-anchor="middle">lab account only · about an hour</text>
+<rect class="d-key" x="30" y="168" width="300" height="62" rx="8"/>
+<text class="d-title" x="180.0" y="189" text-anchor="middle">Terraform</text>
+<text class="d-sub" x="180.0" y="205" text-anchor="middle">refuses to run in any other account</text>
+<text class="d-sub" x="180.0" y="221" text-anchor="middle">code scanned by Checkov first</text>
+<rect class="d-key" x="30" y="264" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="285" text-anchor="middle">plan to a file → review → apply it</text>
+<text class="d-sub" x="180.0" y="301" text-anchor="middle">only the exact change I read</text>
+<rect class="d-node" x="30" y="344" width="300" height="46" rx="8"/>
+<text class="d-title" x="180.0" y="365" text-anchor="middle">Lab account resources</text>
+<text class="d-sub" x="180.0" y="381" text-anchor="middle">checked with a separate read from AWS</text>
+<rect class="d-key" x="30" y="424" width="300" height="62" rx="8"/>
+<text class="d-title" x="180.0" y="445" text-anchor="middle">State bucket</text>
+<text class="d-sub" x="180.0" y="461" text-anchor="middle">versioned · encrypted · private</text>
+<text class="d-sub" x="180.0" y="477" text-anchor="middle">one writer at a time (lock)</text>
+<path class="d-edge" d="M180.0 54.0 L180.0 81.0"/>
+<polygon class="d-arrow" points="180.0,88.0 184.0,81.0 176.0,81.0"/>
+<text class="d-label" x="188.0" y="75.0" text-anchor="start">short-lived sign-in</text>
+<path class="d-edge" d="M180.0 134.0 L180.0 161.0"/>
+<polygon class="d-arrow" points="180.0,168.0 184.0,161.0 176.0,161.0"/>
+<text class="d-label" x="188.0" y="155.0" text-anchor="start">run</text>
+<path class="d-edge" d="M180.0 230.0 L180.0 257.0"/>
+<polygon class="d-arrow" points="180.0,264.0 184.0,257.0 176.0,257.0"/>
+<text class="d-label" x="188.0" y="251.0" text-anchor="start">plan</text>
+<path class="d-edge" d="M180.0 310.0 L180.0 337.0"/>
+<polygon class="d-arrow" points="180.0,344.0 184.0,337.0 176.0,337.0"/>
+<text class="d-label" x="188.0" y="331.0" text-anchor="start">apply</text>
+<path class="d-edge" d="M180.0 390.0 L180.0 417.0"/>
+<polygon class="d-arrow" points="180.0,424.0 184.0,417.0 176.0,417.0"/>
+<text class="d-label" x="188.0" y="411.0" text-anchor="start">records what it built</text>
+</svg>
+      <figcaption>How a change runs. The highlighted boxes are the controls: short-lived credentials, an account check, a reviewed plan, and a protected, locked state.</figcaption>
+    </figure>
+    <p>The AWS side is two accounts. The management account holds billing and identity, and only its root user can sign in to it, with MFA and no access keys. My everyday sign-in, through IAM Identity Center with MFA, can reach only a separate lab account. The command line gets temporary credentials for that one account. There's no access key to leak or rotate.</p>
+    <p>Terraform has a seatbelt too: it's told which account it may touch, and it refuses to run anywhere else. The account ID comes from a file that Git ignores. It isn't a secret, but it identifies a real account, so it stays out of the repo.</p>
+
+    <h2>How I tested it</h2>
+    <h3>Step 1: plan to a file, apply that file</h3>
+    <p>A first bucket, private and encrypted. New S3 buckets are already both by default, but I wrote it down anyway, so a reviewer or a scanner can see it, and a future default change at AWS can't quietly undo it. I saved the plan to a file and applied that exact file, then read the bucket's settings straight from AWS instead of trusting "Apply complete". The teardown got the same treatment: a saved destroy plan, applied, then a check that AWS answered 404.</p>
+
+    <h3>Step 2: taking over a bucket built by hand</h3>
+    <p>Real environments have things somebody clicked together. I made a bucket in the console and brought it under Terraform with import blocks, which go through plan and review like any other change. (The older import command writes state immediately, with nothing to check.)</p>
+    <p>Getting the hand-made bucket in the right place took three tries. The first landed in the management account. From the lab account, that showed up as an access-denied error that read like "this bucket doesn't exist". The second landed in the wrong region. Terraform's account check can't protect the console, and that was the clearest argument for this step.</p>
+    <p>One console bucket turned out to be three Terraform resources: the bucket, its public-access settings and its encryption. Importing only the bucket would have left its security settings unmanaged. Terraform generated the code, and I reviewed it like anyone else's: I removed computed fields, replaced a repeated name with a reference, and kept one setting the console chose that I wouldn't have.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>The import plan changes nothing it doesn&#x27;t have to</strong><span>saved plan, read with terraform show -json</span></figcaption>
+      <pre><code>bucket                    import + update (tags only)
+public access block       import, no change
+encryption                import, no change
+
+creates: 0   deletes: 0   replacements: 0
+
+# after apply:
+$ terraform plan
+No changes. Your infrastructure matches the configuration.</code></pre>
+      <p class="note">Actions summarized from the saved plan file. The only change was adding my standard tags. The bucket name is left out.</p>
+    </figure>
+    <p>Then I tested drift. By hand, I changed a tag and turned off one of the bucket's Block Public Access settings, the kind of change a hurried admin or an attacker makes. A refresh-only plan showed both changes in AWS. A normal plan showed exactly the two fixes and nothing else. I applied it and read the settings back from AWS. The limit is that Terraform only notices drift when someone runs a plan. Catching it continuously needs its own control, which I've noted as a next step.</p>
+
+    <h3>Step 3: a locked state bucket</h3>
+    <p>State moved from a local file to S3. A local file dies with the disk, can't be shared, and does nothing to stop two runs writing it at once. The state bucket is infrastructure too, so it's a chicken-and-egg problem: Terraform needs the bucket before it can store state there. I built the bucket with Terraform using local state, then moved its own state into the bucket it had just made. No hand-made pieces, and no local copy left afterward.</p>
+    <p>A bucket that holds its own record needs guarding. Terraform refuses any plan that would delete it. Every old version of the state is kept for 90 days. ACLs are off, and a policy refuses any request that isn't over HTTPS. Before deleting the local copies, I checked that the remote state's resources matched them exactly and that a plan against S3 showed no changes.</p>
+    <p>Locking uses S3 itself, with no extra database. Terraform writes a small lock object with a conditional write ("only if it doesn't exist"), so exactly one run wins. Locks never expire, so I tested the case you meet in real life: a run that crashed and left its lock behind.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>A fake crashed run, refused and then cleared</strong><span>the lock object&#x27;s version history in S3 (PT, 2026-10-17)</span></figcaption>
+      <pre><code>6:54:02 PM  lock taken      me, plan
+6:54:07 PM  lock released
+6:56:29 PM  lock taken      crashed-run@demo, apply   &lt;- written by hand
+            2nd write       refused (412 Precondition Failed)
+            plan            refused: error acquiring the state lock
+6:56:57 PM  lock released   force-unlock, after reading who held it
+6:57:04 PM  lock taken      me, plan
+6:57:08 PM  lock released</code></pre>
+      <p class="note">Times and lock holders are from the bucket&#x27;s version history. The two refusals left no version, so those lines are summarized. My username is replaced with "me".</p>
+    </figure>
+    <p>The rule I took from it: before force-unlocking, read who holds the lock and when they took it. Unlocking a run that's still going is how state gets corrupted. I had planned to demo the lock with a different Terraform command, and tested it first. It doesn't hold the lock, so the demo used a hand-written one instead.</p>
+
+    <h3>Step 4: every scanner finding gets a decision</h3>
+    <p>Checkov reads the Terraform files and checks each resource against a library of rules. It never talks to AWS, so it catches problems before anything is applied. It's also code from someone else, so it ran boxed in: a container image pinned by its hash (a tag can be moved, a hash can't), no network, the code mounted read-only, not as root.</p>
+    <p>I checked the scanner's output as well. Scanning both folders in one run counted the state bucket's findings two or three times. One folder per run gave clean numbers.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>11 findings: 3 fixed, 8 accepted in writing, 0 failing</strong><span>Checkov 3.3.29, one folder per run</span></figcaption>
+      <pre><code>                  before                 after
+state bucket      14 passed, 5 failed    15 passed, 0 failed, 4 skipped
+learning bucket   10 passed, 6 failed    13 passed, 0 failed, 4 skipped
+
+fixed     clean up unfinished uploads (state bucket)
+          versioning + lifecycle rules (learning bucket)
+accepted  access logging, KMS encryption, cross-region
+          replication, event notifications (each bucket)
+
+# an accepted finding, as it sits in the code:
+#checkov:skip=CKV_AWS_145:Accepted 2026-10-17. Single admin
+#  identity, so a KMS key policy adds no second gate yet.
+#  Revisit with the CI role</code></pre>
+      <p class="note">Counts are from the scanner&#x27;s reports. The skip comment is copied from the code, wrapped to fit.</p>
+    </figure>
+    <p>"Skipped" doesn't mean "ignored". Each skip sits in the code, with a date and a reason the next reviewer can argue with. The fixes were the cheap, right changes. The accepted ones are production rules that don't fit yet. A KMS key policy adds no second gate while there's only one admin identity. Replication inside the same account doesn't stop an admin who has been compromised. Event notifications wired to nothing are just noise. The most important accepted finding is a real gap: access to the state bucket isn't logged yet. It names its fix, logging the bucket's reads and writes into the SIEM, and that's tracked as its own task. An "accepted" finding with no way back becomes a forgotten one.</p>
+
+    <h2>In production, I would change</h2>
+    <ul>
+      <li>Encrypt state with a KMS key whose policy lets only the deployment roles decrypt it, and log every decrypt.</li>
+      <li>Log every read and write of the state bucket to the SIEM, with a detection for unexpected writers.</li>
+      <li>Replicate state to a separate account with Object Lock, so a compromised admin can't delete every copy.</li>
+      <li>Run plans in CI with short-lived credentials from the CI provider's own identity (OIDC), with no stored secrets, and detect drift on a schedule.</li>
+    </ul>
+
+    <h2>What I learned</h2>
+    <ul>
+      <li>"Apply complete" is Terraform's claim. A separate read from AWS is the evidence.</li>
+      <li>Clicks have no review step. Two console slips in one exercise did more to justify the code than any argument.</li>
+      <li>Test the tool, not your memory of it. Both my lock demo plan and my first scan results were wrong until I checked.</li>
+      <li>A scanner finding is a question, not a verdict. I answer each one: fix it, or write down why not and when I'll come back to it.</li>
+    </ul>
+
+    <nav class="next-prev" aria-label="More projects">
+      <a href="/projects/least-privilege-alerting/">&larr; Previous: read-only monitoring</a>
+      <a href="/projects/">All projects</a>
+    </nav>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>
