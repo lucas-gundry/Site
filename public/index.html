@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lucas Gundry</title>
-  <meta name="description" content="Security engineer working on AI security and enterprise security. I'm building a homelab to show the work, and I write up how I tested it.">
+  <meta name="description" content="Security engineer with more than ten years in corporate IT, security operations and security engineering: identity, endpoint security, detection and incident response.">
   <meta property="og:title" content="Lucas Gundry">
-  <meta property="og:description" content="Security engineer working on AI security and enterprise security. I'm building a homelab to show the work, and I write up how I tested it.">
+  <meta property="og:description" content="Security engineer with more than ten years in corporate IT, security operations and security engineering: identity, endpoint security, detection and incident response.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -21,16 +21,34 @@
         <a href="/projects/">Projects</a>
         <a href="/about/">About</a>
         <a href="/contact/">Contact</a>
+        <a href="/resume.pdf">Resume</a>
       </nav>
     </div>
   </header>
   <main id="main" class="wrap">
 <span class="eyebrow">Security engineer</span>
-    <h1>I'm Lucas Gundry. I work on AI security and enterprise security.</h1>
-    <p class="lede">I'm building a homelab to show what I can do. It has a fake company in Okta, a SIEM in Elastic, detections I've tested, and an AI triage agent with guardrails that posts to Slack.</p>
-    <p><a class="button" href="/projects/">Read the write-ups</a></p>
+    <h1>Security engineer: detection, identity and security operations</h1>
+    <p class="lede">I've worked in corporate IT, security operations and security engineering for more than ten years. I built one company's IT and security function as its first internal owner, ran Okta and endpoint security, led incident response, and reworked SIEM detections to cut alert volume by about 30%.</p>
+    <p>Right now I'm a contract security engineer, investigating identity, endpoint, phishing and fraud activity. I use Claude Code to speed up investigations, and people still make the consequential decisions.</p>
+    <p>On my own time I run a security lab with Okta, Elastic, Terraform and an AI triage agent. I use it to test ideas end to end, and I write up what worked and what didn't.</p>
+    <p class="actions"><a class="button" href="/resume.pdf">Resume (PDF)</a> <a href="https://www.linkedin.com/in/lgundry/">LinkedIn</a> <a href="mailto:lucas@lucasgundry.com">Email</a></p>
 
-    <h2>Write-ups</h2>
+    <h2>Experience</h2>
+    <ul class="roles">
+      <li><p class="role"><strong>Security Engineer (contract)</strong> <span>a fintech company · 2026–present</span></p>
+        <p>Investigate identity, endpoint, phishing and fraud activity. Tune SIEM detections and triage workflows.</p></li>
+      <li><p class="role"><strong>Senior Security Engineer (contract)</strong> <span>Vera Therapeutics · 2025–2026</span></p>
+        <p>Owned security engineering across endpoints, infrastructure and cloud services. Led a vulnerability management platform from proof of value to rollout, and led the ZTNA and CASB evaluation.</p></li>
+      <li><p class="role"><strong>Cyber Engineer / Analyst</strong> <span>Armis · 2022–2025</span></p>
+        <p>Helped build and run security operations, including implementing Elastic SIEM. Reworked SIEM detections, cutting alert volume by about 30%. Implemented DLP controls that cut exposed storage files by 50%. Incident commander and sole responder for the FedRAMP GovCloud environment.</p></li>
+      <li><p class="role"><strong>Corporate Security Engineer</strong> <span>Demandbase · 2021–2022</span></p>
+        <p>Restructured Okta around joiner-mover-leaver workflows, SSO and MFA, group-based access and recurring access reviews. Ran endpoint security with Jamf, Intune, SentinelOne and Red Canary.</p></li>
+      <li><p class="role"><strong>Earlier</strong></p>
+        <p>SOC analyst at PG&amp;E (regulated 24/7 SOC), first IT and security owner at Peerspace, senior IT engineer at Indeed, IT support at Varsity Technologies.</p></li>
+    </ul>
+    <p><a href="/about/">Full experience on the About page &rarr;</a></p>
+
+    <h2>Featured work</h2>
     <ul class="cards">
       <li><a class="card" href="/projects/triage-agent-pii/">
         <h3>Keeping personal data out of an AI triage agent</h3>
@@ -40,22 +58,17 @@
         <h3>An MFA fatigue detection, and the test data I guessed wrong</h3>
         <p>A push-bombing rule as code, tested in CI. One real push showed my test data used the wrong event for a denial.</p>
       </a></li>
-      <li><a class="card" href="/projects/triage-agent-dead-mans-switch/">
-        <h3>Knowing when the triage agent stops</h3>
-        <p>A separate read-only check that alerts when the agent stops ticking, when a run fails, or a week before a key expires.</p>
-      </a></li>
-      <li><a class="card" href="/projects/okta-terraform-sigma/">
-        <h3>Okta in Terraform, and a detection I tested both ways</h3>
-        <p>I manage a fake company's Okta with Terraform and wrote a failed sign-in rule. I tested the cases where it should fire and the cases where it shouldn't.</p>
-      </a></li>
       <li><a class="card" href="/projects/event-loss-investigation/">
         <h3>Missing logs that weren't missing</h3>
         <p>A log line said events were being dropped. I wrote up a root cause, then measured it and found I was wrong.</p>
       </a></li>
-      <li><a class="card" href="/projects/least-privilege-alerting/">
-        <h3>Read-only monitoring and backup alerts</h3>
-        <p>A monitoring role I tested by what it's refused, and backup alerts. One alert test caught a config mistake I'd made.</p>
-      </a></li>
+    </ul>
+    <p><a href="/projects/">All projects &rarr;</a></p>
+
+    <h2>Tools</h2>
+    <ul class="tools">
+      <li><strong>At work:</strong> Okta, Entra ID, Google Workspace, Microsoft 365, SentinelOne, CrowdStrike Falcon, Red Canary, Jamf, Intune, Datadog SIEM, Elastic SIEM, Splunk, QRadar, XSOAR, Torq, Claude Code</li>
+      <li><strong>In my lab:</strong> Elastic, Sigma, Terraform, Python, Docker, Claude API and MCP</li>
     </ul>
   </main>
   <footer class="site-footer">

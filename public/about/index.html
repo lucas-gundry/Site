@@ -21,12 +21,69 @@
         <a href="/projects/">Projects</a>
         <a href="/about/" aria-current="page">About</a>
         <a href="/contact/">Contact</a>
+        <a href="/resume.pdf">Resume</a>
       </nav>
     </div>
   </header>
   <main id="main" class="wrap">
 <h1>About</h1>
-    <p class="lede">I'm a security engineer. I work on AI security and enterprise security, mostly identity and detection.</p>
+    <p class="lede">I'm a security engineer with more than ten years in corporate IT, security operations and security engineering. Most of my work has been identity, endpoint security, detection and incident response. At one company I was the first internal owner of IT and security.</p>
+    <p class="actions"><a class="button" href="/resume.pdf">Resume (PDF)</a> <a href="https://www.linkedin.com/in/lgundry/">LinkedIn</a> <a href="mailto:lucas@lucasgundry.com">Email</a></p>
+
+    <h2>Experience</h2>
+    <ul class="roles">
+      <li><p class="role"><strong>Security Engineer (contract)</strong> <span>a fintech company · 2026–present</span></p>
+        <ul>
+          <li>Investigate endpoint, identity, phishing and fraud activity across the SIEM, EDR, identity provider and workspace tools.</li>
+          <li>Tune SIEM detections and investigation workflows: refine filters, suppress known-benign patterns, and add context where coverage or triage is weak.</li>
+          <li>Use Claude Code for investigation enrichment, SIEM analysis and repeatable workflows, with consequential actions kept under human review.</li>
+        </ul></li>
+      <li><p class="role"><strong>Senior Security Engineer (contract)</strong> <span>Vera Therapeutics · 2025–2026</span></p>
+        <ul>
+          <li>Owned security engineering across endpoints, infrastructure, cloud services and operational controls, from hardening and troubleshooting through remediation.</li>
+          <li>Led a vulnerability management platform from proof of value through selection and implementation, then set up a practical remediation process with system owners.</li>
+          <li>Led the evaluation and design of ZTNA and CASB, balancing access needs, network behavior, user impact and security risk.</li>
+          <li>Investigated activity through Red Canary and SentinelOne. Maintained standards, runbooks, risk assessments and controls for ISO 27001, NIST, HIPAA and SOC 2.</li>
+        </ul></li>
+      <li><p class="role"><strong>Cyber Engineer / Analyst</strong> <span>Armis · 2022–2025</span></p>
+        <ul>
+          <li>Helped build and run the security operations program across endpoint, identity, cloud, SIEM, DLP, vulnerability management and incident response. Implemented and used Elastic SIEM.</li>
+          <li>Administered CrowdStrike Falcon: investigations, containment, prevention policy, and troubleshooting with IT.</li>
+          <li>Reworked SIEM detections and correlation logic, cutting alert volume by about 30% while keeping useful coverage and giving responders more context.</li>
+          <li>Implemented DLP controls that cut exposed storage files by 50%, working through findings, exceptions and remediation with data owners.</li>
+          <li>Incident commander and sole responder for the FedRAMP GovCloud environment: containment, recovery, after-action reports and control improvements.</li>
+        </ul></li>
+      <li><p class="role"><strong>Corporate Security Engineer</strong> <span>Demandbase · 2021–2022</span></p>
+        <ul>
+          <li>Administered identity, endpoint and security systems: Okta, Entra ID and Conditional Access, Intune, Microsoft Defender, SentinelOne, Red Canary, Cloudflare, Jamf and AWS.</li>
+          <li>Restructured Okta around joiner-mover-leaver workflows, SSO and MFA, group-based access, role changes, onboarding and offboarding, and recurring access reviews.</li>
+          <li>Managed endpoint policy through Jamf and Intune, and investigated endpoint events through SentinelOne and Red Canary.</li>
+          <li>Administered Microsoft 365 security and compliance controls, including Defender and Purview.</li>
+          <li>Worked with IT, HR, Engineering, Legal and leadership on access reviews, third-party risk, audit evidence and SOC 2, ISO and CIS control work.</li>
+        </ul></li>
+      <li><p class="role"><strong>SOC / Threat Analyst</strong> <span>PG&amp;E · 2020–2021</span></p>
+        <ul>
+          <li>Investigated alerts in a regulated 24/7 SOC using QRadar, endpoint telemetry, network data and threat hunting; documented and coordinated response in XSOAR.</li>
+          <li>Triaged endpoint alerts and supported firewall, segmentation and containment work during active investigations.</li>
+        </ul></li>
+      <li><p class="role"><strong>Security Operations &amp; IT Manager</strong> <span>Peerspace · 2018–2020</span></p>
+        <ul>
+          <li>Built the company's IT and security function as its first internal owner: Okta identity, onboarding and offboarding, endpoints, SaaS, networks, email security and incident response.</li>
+          <li>Implemented Okta SSO and groups; managed Jamf, Carbon Black, Google Workspace, Meraki, 1Password and DMARC, DKIM and SPF.</li>
+          <li>Worked directly with leadership, HR, Engineering, Legal and Finance on access, vendors, risk, budgets and security priorities.</li>
+        </ul></li>
+      <li><p class="role"><strong>Senior IT Engineer</strong> <span>Indeed · 2016–2018</span></p>
+        <ul>
+          <li>Administered macOS, Windows and Linux with Google Workspace, Jamf, OneLogin, Active Directory, Duo, VPN, NAC and firewalls; managed SSO, SaaS access and provisioning.</li>
+        </ul></li>
+      <li><p class="role"><strong>IT Support Specialist</strong> <span>Varsity Technologies · 2015–2016</span></p>
+        <ul>
+          <li>Supported nonprofit client environments across Windows Server, macOS, Linux, VMware, Cisco and Meraki networking, and HIPAA-regulated systems.</li>
+        </ul></li>
+    </ul>
+
+    <h2>Certifications and education</h2>
+    <p>GCIH · CompTIA Security+ · CompTIA Network+ · CompTIA A+ · CompTIA Secure Infrastructure Specialist (CSIS)<br>Economics, CSU East Bay</p>
 
     <h2>How I work</h2>
     <p>I test access by trying things that should fail. If a monitoring account can delete backups, I want to find that out myself.</p>
@@ -35,7 +92,8 @@
     <p>When something looks broken, I measure it before I fix it, and I keep my notes when I turn out to be wrong. <a href="/projects/event-loss-investigation/">One of my write-ups</a> is about that.</p>
     <p>I keep secrets out of my repos and my logs. Every push to this site runs gitleaks and a check for internal hostnames and IDs.</p>
 
-    <h2>Skills and tools</h2>
+    <h2>In my lab</h2>
+    <p>The tools I use in my homelab. My work tools are in the experience above.</p>
     <div class="table-wrap">
       <table>
         <tbody>
@@ -43,14 +101,14 @@
           <tr><th scope="row">Detection</th><td>Elastic Security, Sigma and pySigma, threshold rules, test cases kept with each rule</td></tr>
           <tr><th scope="row">Infrastructure</th><td>Linux, Docker, systemd timers, Elasticsearch snapshots and restore tests, Tailscale</td></tr>
           <tr><th scope="row">Automation</th><td>Python, Bash, Terraform, unit tests with fakes in place of outside services</td></tr>
-          <tr><th scope="row">AI security</th><td>Agents with read-only tools, limits on each run, approval before actions, prompt-injection tests</td></tr>
+          <tr><th scope="row">AI security</th><td>An agent with read-only tools and limits on each run, prompt-injection tests; approval for actions designed, not built yet</td></tr>
           <tr><th scope="row">Email and domain</th><td>Cloudflare DNS and Email Routing, DMARC monitoring</td></tr>
         </tbody>
       </table>
     </div>
 
     <h2>Resume</h2>
-    <p>My resume is available on request. <a href="/contact/">Email me</a> and I'll send it.</p>
+    <p><a href="/resume.pdf">Download my resume (PDF)</a> or find me on <a href="https://www.linkedin.com/in/lgundry/">LinkedIn</a>.</p>
   </main>
   <footer class="site-footer">
     <div class="wrap">
