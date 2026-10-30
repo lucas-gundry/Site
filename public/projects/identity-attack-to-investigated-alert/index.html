@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From identity attack to investigated alert · Lucas Gundry</title>
+  <meta name="description" content="One password-guessing attempt against a fake employee in Okta, followed end to end: ingested into Elastic, detected, triaged by an AI agent with personal data replaced by stand-ins, and posted to Slack. Six steps ran live; the approval step is designed, not built.">
+  <meta property="og:title" content="From identity attack to investigated alert · Lucas Gundry">
+  <meta property="og:description" content="One password-guessing attempt against a fake employee in Okta, followed end to end: ingested into Elastic, detected, triaged by an AI agent with personal data replaced by stand-ins, and posted to Slack. Six steps ran live; the approval step is designed, not built.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+        <a href="/resume.pdf">Resume</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">End-to-end walkthrough</span>
+    <h1>From identity attack to investigated alert</h1>
+    <p class="meta">Okta · Elastic Security · Python · Claude API · Slack</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> one alert followed through every stage I built: identity telemetry, detection, AI-assisted triage with personal data kept out, and a clear line between what the agent may do and what a person decides. Six of the seven steps ran live in one test; the last is designed but not built, and this page says so.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
+
+    <h2>The test</h2>
+    <p>On October 28 I played the attacker against my own lab. From one private browser window I tried to sign in once with a made-up outside email address, then entered a wrong password five times for a fake employee. Then I watched what each part of the lab did with it, without touching anything until the verdict was in Slack.</p>
+    <p>Everything below is rebuilt from that run. Names, addresses and IDs are replaced with made-up values; times, counts and event names are real.</p>
+
+    <div class="table-wrap"><table>
+      <thead><tr><th>Step</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>1. Suspicious sign-ins in Okta</td><td>Ran live</td></tr>
+        <tr><td>2. Events reach the SIEM</td><td>Ran live</td></tr>
+        <tr><td>3. Detection fires</td><td>Ran live</td></tr>
+        <tr><td>4. The AI agent investigates</td><td>Ran live</td></tr>
+        <tr><td>5. Personal data replaced</td><td>Ran live</td></tr>
+        <tr><td>6. Verdict posted to Slack</td><td>Ran live</td></tr>
+        <tr><td>7. A person decides; approved actions run</td><td><strong>Designed, not built.</strong> Today the agent can only recommend.</td></tr>
+      </tbody>
+    </table></div>
+
+    <section class="replay" aria-label="the walkthrough, step by step">
+      <input type="radio" name="w" id="w-1" checked aria-label="Step 1 of 7">
+      <input type="radio" name="w" id="w-2" aria-label="Step 2 of 7">
+      <input type="radio" name="w" id="w-3" aria-label="Step 3 of 7">
+      <input type="radio" name="w" id="w-4" aria-label="Step 4 of 7">
+      <input type="radio" name="w" id="w-5" aria-label="Step 5 of 7">
+      <input type="radio" name="w" id="w-6" aria-label="Step 6 of 7">
+      <input type="radio" name="w" id="w-7" aria-label="Step 7 of 7">
+      <div class="replay-head"><strong>Walkthrough</strong><span>Times are Pacific, 2026-10-28. Made-up names and IDs.</span></div>
+      <ol class="replay-dots">
+        <li><label for="w-1" title="Step 1">1</label></li>
+        <li><label for="w-2" title="Step 2">2</label></li>
+        <li><label for="w-3" title="Step 3">3</label></li>
+        <li><label for="w-4" title="Step 4">4</label></li>
+        <li><label for="w-5" title="Step 5">5</label></li>
+        <li><label for="w-6" title="Step 6">6</label></li>
+        <li><label for="w-7" title="Step 7">7</label></li>
+      </ol>
+      <ol class="replay-steps">
+        <li class="replay-step">
+          <span class="when">12:58–12:59 PM · step 1 of 7 · ran live</span>
+          <h4>Password guessing against a fake employee</h4>
+          <p>One sign-in with a made-up outside address, then five wrong passwords for <code>user-a</code>, all from the same browser and address within 71 seconds. Okta logs each one as a failed <code>user.session.start</code>.</p>
+          <pre>12:58:12  user.session.start  FAILURE  someone@outside.example
+12:59     user.session.start  FAILURE  user-a@example-company   VERIFICATION_ERROR
+  ...     (5 for user-a in about six seconds, the last at 12:59:23)</pre>
+          <p>Limit: the target account was never activated, so this is guessing at an account that can't sign in. No account takeover was simulated.</p>
+          <div class="replay-nav"><span class="off">&larr; Back</span><label for="w-2">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">by 1:05 PM · step 2 of 7 · ran live</span>
+          <h4>The events reach the SIEM</h4>
+          <p>Elastic Agent reads Okta's audit log every minute, signing in as its own read-only OAuth app. All six failures were in Elastic, with one source address between them. An hourly check matches every Okta event ID against Elastic, so a lost event would alert on its own.</p>
+          <pre>logs-okta.system-*   user.session.start   failure   6
+  user-a: 5     distinct source addresses: 1</pre>
+          <div class="replay-nav"><label for="w-1">&larr; Back</label><label for="w-3">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">1:00–1:03 PM run · step 3 of 7 · ran live</span>
+          <h4>The detection fires</h4>
+          <p>The rule counts failed sign-ins per user: 5 or more in one run fires. It runs every 5 minutes, looks back 6, and counts by ingest time so late events still count. It fired once for <code>user-a</code>.</p>
+          <pre>ALERT  Okta: repeated failed sign-ins for one user
+       user.name: user-a@example-company   count: 5</pre>
+          <div class="replay-nav"><label for="w-2">&larr; Back</label><label for="w-4">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">1:05 PM · step 4 of 7 · ran live</span>
+          <h4>The AI agent investigates</h4>
+          <p>A timer checks for new alerts every 5 minutes and claims each alert once. The agent can call only read-only tools, at most 15 per run, with a token cap. Here it looked up the alert, the user's sign-ins, everything else from that address, the account and its groups.</p>
+          <pre>tick: 1 open alerts in 24h, 1 not yet run, running 1
+totals: 6 of 15 tool calls, 1 model request,
+        9515 of 150000 tokens, 0 strings that looked like injection
+posted to Slack (verdict)
+exit=0 verdict</pre>
+          <p>The risk score is computed in code, not by the model. The model's answer has to pass checks before it's posted: every piece of evidence must cite events the tools returned.</p>
+          <div class="replay-nav"><label for="w-3">&larr; Back</label><label for="w-5">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">1:05 PM · step 5 of 7 · ran live</span>
+          <h4>Personal data replaced before the model sees it</h4>
+          <p>The lab's sign-ins come from my own devices, and anyone can type anything into a sign-in page. So addresses, places and outside emails leave the tools as stand-ins. The fake employee's address stays, because the verdict has to say who the alert is about.</p>
+          <pre>source address    203.0.113.x          →  [masked-ip-1]
+location          (city, country)      →  withheld
+outside username  someone@outside...   →  [email-1]
+fake employee     user-a@example-company  (kept)</pre>
+          <p>Afterwards I scanned the run's 18 audit records: no outside address in any of them. Those records keep tool arguments, not tool output, so the post itself is where the stand-in shows.</p>
+          <div class="replay-nav"><label for="w-4">&larr; Back</label><label for="w-6">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">1:05 PM · step 6 of 7 · ran live</span>
+          <h4>The verdict in Slack</h4>
+          <pre>Bionic Footwear triage: suspicious, risk 40/100
+Needs a person: yes
+User: user-a
+Summary: Five failed sign-ins for user-a came from [masked-ip-1]
+within about six seconds. The same address also tried one other
+account, [email-1], once. The account has never been activated
+and none of the sign-ins succeeded. Worth watching; nothing shows
+a compromise.
+Recommended (advice only, nothing was done):
+- watch_user
+- ask_user: should this account see sign-in attempts at all?
+Not checked: reputation of [masked-ip-1], country (withheld)</pre>
+          <p>It also flagged that the alert's time window (1:00–1:03) didn't match the events (12:59). That's expected: the rule counts by ingest time, and the window is the run's. I'd rather it raise a small mismatch than smooth it over.</p>
+          <div class="replay-nav"><label for="w-5">&larr; Back</label><label for="w-7">Next &rarr;</label></div>
+        </li>
+        <li class="replay-step">
+          <span class="when">designed · step 7 of 7 · not built</span>
+          <h4>A person decides</h4>
+          <p>Today the agent has no tools that change anything. It recommends from a fixed list, and I act by hand. For this alert there was nothing to do: it was my own test, against an account that can't sign in.</p>
+          <p>The design for approvals, written and reviewed but not built:</p>
+          <pre>suspend_user or revoke_sessions recommended
+  → Slack post gets Approve / Deny, for me only
+  → the button carries a one-time ID, not the target
+  → expires after 15 minutes; at most 3 actions an hour
+  → protected accounts (admins, service accounts) get no buttons
+  → a separate process with a narrow Okta role acts
+  → it checks the change is visible, then records it
+unsuspend stays manual</pre>
+          <div class="replay-nav"><label for="w-6">&larr; Back</label><label for="w-1">Start over &#8634;</label></div>
+        </li>
+      </ol>
+    </section>
+
+    <h2>What I'd point out to a reviewer</h2>
+    <ul>
+      <li><strong>Each step is its own control.</strong> The ingest has a completeness check, the detection has test cases in CI, the agent has a call cap and output checks, the stand-ins have their own tests, and the timer has a dead man's switch. They're written up in the linked projects.</li>
+      <li><strong>The model never decides alone.</strong> Code computes the score and checks the answer. Actions that change an account need a person, and that step isn't built yet.</li>
+      <li><strong>The weak points are stated.</strong> One run, one kind of attack, a target that was never active, and a verdict that's useful but not tested against a real compromise.</li>
+    </ul>
+
+    <h2>The pieces, in more detail</h2>
+    <ul>
+      <li><a href="/projects/okta-terraform-sigma/">Okta in Terraform, and a detection I tested both ways</a> (steps 1–3)</li>
+      <li><a href="/projects/event-loss-investigation/">Missing logs that weren't missing</a> (step 2's completeness check)</li>
+      <li><a href="/projects/triage-agent-pii/">Keeping personal data out of an AI triage agent</a> (step 5)</li>
+      <li><a href="/projects/triage-agent-dead-mans-switch/">Knowing when the triage agent stops</a> (step 4's timer)</li>
+    </ul>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>
