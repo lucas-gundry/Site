@@ -77,7 +77,7 @@ okta.outcome.reason: <span class="t-ok">INVALID_CREDENTIALS</span>
 <span class="t-dim"># followed by a failed user.session.start with the same reason</span></code></pre>
       <p class="note">The values are made up. The field names and codes match what Okta logged for my real denied push.</p>
     </figure>
-    <p>The rule's query only counts pushes sent, so it would have worked anyway. The damage would have been in triage: an analyst following my notes would have searched for denials, found none, and read an attack as a slow phone. I fixed the triage notes and the test data, and all 16 cases across my rules still pass.</p>
+    <p>The rule's query only counts pushes sent, so detection wasn't affected. The risk was in triage: notes that point to the wrong denial event could lead an analyst to find no denials and mistake an attack for a slow phone. I fixed the triage notes and the test data, and all 16 cases across my rules still pass.</p>
     <p>I'd already learned this once with an earlier check: test data has to copy real data, not my idea of it. Tests that pass on a guessed format only prove the guess.</p>
 
     <h2>How I tested it</h2>
