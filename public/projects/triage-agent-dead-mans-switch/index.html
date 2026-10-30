@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowing when the triage agent stops · Lucas Gundry</title>
+  <meta name="description" content="A dead man's switch for my AI triage agent: a separate read-only check that alerts when the agent stops ticking, when a tick fails, or before a key expires, and also when the check itself goes quiet.">
+  <meta property="og:title" content="Knowing when the triage agent stops · Lucas Gundry">
+  <meta property="og:description" content="A dead man's switch for my AI triage agent: a separate read-only check that alerts when the agent stops ticking, when a tick fails, or before a key expires, and also when the check itself goes quiet.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Monitoring · reliability</span>
+    <h1>Knowing when the triage agent stops</h1>
+    <p class="meta">systemd · Elastic · healthchecks.io · Python · Bash</p>
+
+    <div class="callout"><p><strong>In short:</strong> my AI triage agent checks for new alerts every 5 minutes. A separate read-only check confirms it's still ticking, that its last run succeeded, and that no key it needs is about to expire. The check reports to an outside service, which emails me on a failure and also when the check goes quiet. I tested the failure paths live.</p></div>
+
+    <h2>Problem</h2>
+    <p>A triage agent that has stopped looks exactly like a quiet day: no posts in Slack. There are three ways it can fail:</p>
+    <ul>
+      <li><strong>It doesn't run.</strong> The machine is off, or the timer is dead. Nothing on the machine can report that.</li>
+      <li><strong>It runs but fails.</strong> A run crashes or can't reach a service it needs.</li>
+      <li><strong>It runs fine until an alert arrives.</strong> Listing new alerts needs only the SIEM. An expired model API key would only break a run when there's an alert to triage, so a simple heartbeat stays green right up to the moment it matters.</li>
+    </ul>
+
+    <h2>Design</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 360 300" role="img" aria-labelledby="dt dd" xmlns="http://www.w3.org/2000/svg"><title id="dt">A separate check watches the agent</title><desc id="dd">The agent's timer ticks every 5 minutes and writes audit records to Elastic. A separate check runs 2 minutes after each tick. It reads the audit records with a read-only account, asks systemd for the agent unit's last result, and compares known key expiry dates. It reports one short line to healthchecks.io, which emails on a failure or when no report arrives.</desc>
+<rect class="d-node" x="8" y="8" width="160" height="46" rx="8"/>
+<text class="d-title" x="88" y="29" text-anchor="middle">Agent timer</text>
+<text class="d-sub" x="88" y="45" text-anchor="middle">every 5 minutes</text>
+<rect class="d-node" x="8" y="104" width="160" height="46" rx="8"/>
+<text class="d-title" x="88" y="125" text-anchor="middle">Elastic audit log</text>
+<text class="d-sub" x="88" y="141" text-anchor="middle">one record per tick</text>
+<path class="d-edge" d="M88 54 L88 97"/><polygon class="d-arrow" points="88,104 92,97 84,97"/>
+<text class="d-label" x="96" y="82" text-anchor="start">writes</text>
+<rect class="d-key" x="192" y="88" width="160" height="78" rx="8"/>
+<text class="d-title" x="272" y="109" text-anchor="middle">Timer check</text>
+<text class="d-sub" x="272" y="125" text-anchor="middle">2 min after each tick</text>
+<text class="d-sub" x="272" y="141" text-anchor="middle">read-only account</text>
+<text class="d-sub" x="272" y="157" text-anchor="middle">unit result · key dates</text>
+<path class="d-edge dash" d="M185 127 L168 127"/><polygon class="d-arrow" points="168,127 175,123 175,131"/>
+<text class="d-label" x="176" y="118" text-anchor="middle">reads</text>
+<rect class="d-key" x="192" y="206" width="160" height="62" rx="8"/>
+<text class="d-title" x="272" y="227" text-anchor="middle">healthchecks.io</text>
+<text class="d-sub" x="272" y="243" text-anchor="middle">emails on failure, or</text>
+<text class="d-sub" x="272" y="259" text-anchor="middle">no report in 15 min</text>
+<path class="d-edge" d="M272 166 L272 199"/><polygon class="d-arrow" points="272,206 276,199 268,199"/>
+<text class="d-label" x="280" y="190" text-anchor="start">one line</text>
+</svg>
+      <figcaption>The highlighted boxes are the controls. The check is separate from the agent and only reads. The outside service catches the case where nothing reports at all.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>A separate check, not a ping from the agent.</strong> It confirms each tick's record actually reached the SIEM. It gives the agent no new outbound destination and no new secret, and it changes nothing in the agent.</li>
+      <li><strong>It fails on the first of four states:</strong> <code>stale</code> (no successful tick recorded in 15 minutes), <code>unit_failed</code> (the agent's last run didn't succeed), <code>key_expiring</code> (a key the agent needs expires within 7 days) and <code>key_expired</code>.</li>
+      <li><strong>It asks for the agent's service by name.</strong> The machine's overall service state already reads "degraded" because of two desktop services that can't run on a headless server. A check on the overall state would always fail, and soon nobody would read it.</li>
+      <li><strong>Key dates are written into the check.</strong> They aren't secrets, so the check never needs to open a key file. The catch is that I have to update a date when I renew a key.</li>
+      <li><strong>One short line leaves the machine:</strong> a status word, counts, minutes and a key's name. The script that sends it refuses to send anything that doesn't fit that format.</li>
+      <li><strong>The outside service is the dead man's switch.</strong> It expects a report every 5 minutes, with 10 minutes' grace. It emails me on a failure, and also when reports stop.</li>
+    </ul>
+
+    <h2>Before and after</h2>
+    <p>The same moment, seen two ways. Here the model API key expires in 3 days. All values are made up, in the check's real output format.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>A heartbeat alone</strong><span>synthetic example</span></figcaption>
+      <pre><code>tick: 0 open alerts in 24h, 0 not yet run, running 0
+<span class="t-ok">heartbeat: ok</span>                     <span class="t-dim"># green until the first alert hits the expired key</span></code></pre>
+    </figure>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>The timer check</strong><span>synthetic example, real format, two lines and the unit name left out</span></figcaption>
+      <pre><code>Window:  last 15 minutes
+Records: 3
+Unit:    agent service: success
+Keys:    anthropic_api_key, 3 days left
+<span class="t-warn">SUMMARY fail status=key_expiring records=3 last_min=2 unit=success key=anthropic_api_key key_days=3</span>
+
+<span class="t-dim"># the only thing sent to healthchecks.io:</span>
+FAIL status=key_expiring records=3 last_min=2 unit=success key=anthropic_api_key key_days=3 tries=1</code></pre>
+      <p class="note">The warning arrives a week ahead, while every tick still succeeds.</p>
+    </figure>
+
+    <h2>What I got wrong</h2>
+    <ul>
+      <li><strong>An exposed ping URL.</strong> Anyone with a check's ping URL can report it healthy. The first URL I created for this check was exposed, so I deleted that check and made a new one rather than keep using it. The new URL lives in a file only my user can read, is passed to the sender without being printed, and is on the list of files my AI coding assistant is never allowed to read.</li>
+      <li><strong>An old mistake, guarded against.</strong> On an earlier check I'd put the wrong check's ping URL in a settings file, so its missed runs could never alert (<a href="/projects/least-privilege-alerting/">that write-up</a>). This check's sender refuses to run with any of my other checks' URLs.</li>
+      <li><strong>A known cost I kept.</strong> If the machine is off for more than 15 minutes, the first check after it comes back reports <code>stale</code>, then recovers at the next tick. That's true, so I didn't hide it.</li>
+    </ul>
+
+    <h2>How I tested it</h2>
+    <ul>
+      <li><strong>31 unit tests:</strong> 18 for the check and 13 for the sender. They cover each state, the format check and refusing other checks' URLs.</li>
+      <li><strong>Run by hand</strong> first: ok, and the outside service showed the check as up.</li>
+      <li><strong>A failed run:</strong> with a stand-in failure the check reported <code>unit_failed</code>. The failure email came at 7:58 PM and the recovery email at 8:02 PM.</li>
+      <li><strong>The agent stopped:</strong> I stopped the agent's timer. The next check reported <code>stale</code>, 16 minutes after the last tick, and the down email came. Then I restarted the timer.</li>
+      <li><strong>What I didn't test:</strong> the check itself going quiet past the grace period. That path is the outside service's own, and I'd already tested it live on two other checks. The design gives the email about 15 minutes after the last report.</li>
+    </ul>
+
+    <h2>What I learned</h2>
+    <p>A heartbeat proves something ran. It doesn't prove the next real job will work. Watching the slow failures too, like a key that's about to expire, turns a surprise outage into a reminder a week ahead.</p>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>

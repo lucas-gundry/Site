@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Projects · Lucas Gundry</title>
-  <meta name="description" content="Write-ups from my security homelab: Okta in Terraform with a tested detection, a log-loss investigation, and read-only monitoring with backup alerts.">
+  <meta name="description" content="Write-ups from my security homelab: keeping personal data out of an AI triage agent, an MFA fatigue detection, monitoring the agent, Okta in Terraform, a log-loss investigation, and read-only monitoring.">
   <meta property="og:title" content="Projects · Lucas Gundry">
-  <meta property="og:description" content="Write-ups from my security homelab: Okta in Terraform with a tested detection, a log-loss investigation, and read-only monitoring with backup alerts.">
+  <meta property="og:description" content="Write-ups from my security homelab: keeping personal data out of an AI triage agent, an MFA fatigue detection, monitoring the agent, Okta in Terraform, a log-loss investigation, and read-only monitoring.">
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
@@ -26,8 +26,23 @@
   </header>
   <main id="main" class="wrap">
 <h1>Projects</h1>
-    <p class="lede">Each write-up covers the problem, what I built, how I tested it and what I learned. One of them is about a finding I got wrong.</p>
+    <p class="lede">Each write-up covers the problem, what I built, how I tested it and what I learned. Most of them include something I got wrong.</p>
     <ul class="cards">
+      <li><a class="card" href="/projects/triage-agent-pii/">
+        <h3>Keeping personal data out of an AI triage agent</h3>
+        <p>The agent sends log data to a hosted model and to Slack. A deny list leaked twice, so every address, place and outside email now leaves its tools as a stand-in.</p>
+        <ul class="tags"><li>AI security</li><li>Data protection</li><li>Python</li><li>MCP</li></ul>
+      </a></li>
+      <li><a class="card" href="/projects/mfa-fatigue-detection/">
+        <h3>An MFA fatigue detection, and the test data I guessed wrong</h3>
+        <p>A Sigma rule, an Elastic threshold rule and test cases that run in CI. A real push showed Okta logs a denial under a different event than my test data used.</p>
+        <ul class="tags"><li>Detection as code</li><li>Sigma</li><li>Okta</li><li>CI</li></ul>
+      </a></li>
+      <li><a class="card" href="/projects/triage-agent-dead-mans-switch/">
+        <h3>Knowing when the triage agent stops</h3>
+        <p>A separate read-only check that catches a stopped timer, a failed run and a key about to expire, with an outside dead man's switch for when nothing reports at all.</p>
+        <ul class="tags"><li>Monitoring</li><li>systemd</li><li>healthchecks.io</li></ul>
+      </a></li>
       <li><a class="card" href="/projects/okta-terraform-sigma/">
         <h3>Okta in Terraform, and a detection I tested both ways</h3>
         <p>A fake company's Okta directory in Terraform, its audit log in Elastic, and a failed sign-in rule written in Sigma. I tested when it fires and when it stays quiet.</p>

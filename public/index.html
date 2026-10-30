@@ -27,7 +27,7 @@
   <main id="main" class="wrap">
 <span class="eyebrow">Security engineer</span>
     <h1>I'm Lucas Gundry. I work on AI security and enterprise security.</h1>
-    <p class="lede">I'm building a homelab to show what I can do. It has a fake company in Okta, a SIEM in Elastic, a detection I've tested, and an AI triage agent I'm building with guardrails.</p>
+    <p class="lede">I'm building a homelab to show what I can do. It has a fake company in Okta, a SIEM in Elastic, detections I've tested, and an AI triage agent with guardrails that posts to Slack.</p>
     <p><a class="button" href="/projects/">Read the write-ups</a></p>
 
     <h2>The lab</h2>
@@ -36,13 +36,26 @@
     <ul>
       <li>An Okta directory for the fake company, with 30 users in 8 departments and 13 groups, all managed in Terraform.</li>
       <li>Okta's audit log streams into Elastic. Every hour a separate check confirms each event arrived, matching by event ID.</li>
-      <li>One detection: 5 or more failed sign-ins for one user in 5 minutes. I tested when it should fire and when it shouldn't.</li>
+      <li>Detections written as code, with test cases that run on every pull request: failed Okta sign-ins, SSH failures and sudo as another user are live. An MFA push fatigue rule is written and tested, but not turned on yet.</li>
       <li>Nightly snapshots of the SIEM, with a daily check that emails me if a backup fails or the check stops reporting.</li>
-      <li>The first steps of the triage agent. It's capped at 15 tool calls per run. Its tests assume the model obeys injected text, then check that code rejects what it asks for.</li>
+      <li>An AI triage agent that checks for new alerts every 5 minutes, investigates with read-only tools and posts a verdict to Slack. It's capped at 15 tool calls per run. Its tests assume the model obeys injected text, then check that code rejects what it asks for.</li>
+      <li>Personal data leaves the agent's tools only as stand-ins. A separate check emails me if the agent stops, fails or is about to lose a key.</li>
     </ul>
 
     <h2>Write-ups</h2>
     <ul class="cards">
+      <li><a class="card" href="/projects/triage-agent-pii/">
+        <h3>Keeping personal data out of an AI triage agent</h3>
+        <p>My first design hid only the values I'd listed, and it leaked twice. Stand-ins now replace every address, place and outside email before the model or Slack sees them.</p>
+      </a></li>
+      <li><a class="card" href="/projects/mfa-fatigue-detection/">
+        <h3>An MFA fatigue detection, and the test data I guessed wrong</h3>
+        <p>A push-bombing rule as code, tested in CI. One real push showed my test data used the wrong event for a denial.</p>
+      </a></li>
+      <li><a class="card" href="/projects/triage-agent-dead-mans-switch/">
+        <h3>Knowing when the triage agent stops</h3>
+        <p>A separate read-only check that alerts when the agent stops ticking, when a run fails, or a week before a key expires.</p>
+      </a></li>
       <li><a class="card" href="/projects/okta-terraform-sigma/">
         <h3>Okta in Terraform, and a detection I tested both ways</h3>
         <p>I manage a fake company's Okta with Terraform and wrote a failed sign-in rule. I tested the cases where it should fire and the cases where it shouldn't.</p>

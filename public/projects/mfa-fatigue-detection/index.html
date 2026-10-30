@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>An MFA fatigue detection, and the test data I guessed wrong · Lucas Gundry</title>
+  <meta name="description" content="A detection-as-code rule for MFA push fatigue: Sigma, an Elastic threshold rule and test cases run in CI. A real push test showed my test data used an event Okta doesn't log for a denial.">
+  <meta property="og:title" content="An MFA fatigue detection, and the test data I guessed wrong · Lucas Gundry">
+  <meta property="og:description" content="A detection-as-code rule for MFA push fatigue: Sigma, an Elastic threshold rule and test cases run in CI. A real push test showed my test data used an event Okta doesn't log for a denial.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Detection engineering</span>
+    <h1>An MFA fatigue detection, and the test data I guessed wrong</h1>
+    <p class="meta">Sigma · Elastic Security · Okta Verify · GitHub Actions</p>
+
+    <div class="callout"><p><strong>In short:</strong> I wrote a rule for MFA push fatigue as code, with test cases that CI runs on every change. Before turning it on, I checked it against one real push. The event name for "push sent" was right. But a real denial is logged under a different event than the one my test data used, so I fixed the test data. The rule is in the repo and passes its tests. It isn't turned on yet.</p></div>
+
+    <h2>Problem</h2>
+    <p>An attacker who already has a password can send push prompt after push prompt, hoping the user taps Approve to make them stop. This is called MFA fatigue or MFA bombing (MITRE ATT&amp;CK T1621). A single push is a normal sign-in. A burst of pushes to one person is the signal.</p>
+
+    <h2>Design</h2>
+    <ul>
+      <li><strong>A Sigma rule for one event:</strong> Okta sent an Okta Verify push (<code>system.push.send_factor_verify_push</code>). Sigma keeps the logic portable across SIEMs.</li>
+      <li><strong>The count lives in the Elastic rule:</strong> 5 or more pushes for one <code>user.name</code> in one run. It runs every 5 minutes and looks back 6. My failed sign-in rule has the same shape, because the Sigma converters can't produce a Kibana threshold rule.</li>
+      <li><strong>Counted by ingest time, not event time,</strong> so events that arrive late still count in the next run.</li>
+      <li><strong>Triage notes in the rule:</strong> who was targeted, from where, whether pushes were denied, and above all whether a push was approved or a session started afterwards. If so, treat the password as known and reset it. A person approves that action.</li>
+    </ul>
+    <h3>Test cases</h3>
+    <p>Each rule has made-up events with the expected result. A script runs every rule's cases on every pull request, alongside a Terraform scan.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Case</th><th>Expected</th></tr></thead>
+      <tbody>
+        <tr><td>Five pushes in four minutes, four denied, the fifth approved (fatigue that worked)</td><td>fires</td></tr>
+        <tr><td>Four pushes in two minutes for one user</td><td>quiet</td></tr>
+        <tr><td>Two pushes, then approved (slow phone)</td><td>quiet</td></tr>
+        <tr><td>Five pushes to five users in two minutes (busy morning)</td><td>quiet</td></tr>
+        <tr><td>Five pushes to one user over 40 minutes (slow drip)</td><td>quiet: a known gap</td></tr>
+      </tbody>
+    </table></div>
+    <p>The slow-drip case is there on purpose. It records what the rule misses, so a later change that claims to catch it has a test to pass.</p>
+
+    <h2>What I got wrong</h2>
+    <p>I wrote the rule and its test data from Okta's event type catalog, without checking them against my lab's data. So I marked the rule as a draft and shipped it turned off.</p>
+    <p>Before turning it on, I checked it against real data. The "push sent" event was right. My lab already held 19 real ones from my own sign-ins, all with a <code>user.name</code> to count by. Then I signed in and denied a push on my phone.</p>
+    <p>My test data and my triage notes expected the denial as <code>user.mfa.okta_verify.deny_push</code>. Okta logged nothing by that name. A denied push shows up as a failed MFA check with a reason code:</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>Before: the denial in my test data</strong><span>synthetic event, guessed from the catalog</span></figcaption>
+      <pre><code>event.action:   <span class="t-bad">user.mfa.okta_verify.deny_push</span>
+event.outcome:  failure
+user.name:      user-a@example-company
+okta.outcome.reason: <span class="t-bad">Push rejected</span></code></pre>
+    </figure>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>After: the shape of a real denial</strong><span>synthetic event, copied from the real one's fields</span></figcaption>
+      <pre><code>event.action:   <span class="t-ok">user.authentication.auth_via_mfa</span>
+event.outcome:  failure
+user.name:      user-a@example-company
+okta.debug_context.debug_data.factor: <span class="t-ok">OKTA_VERIFY_PUSH</span>
+okta.outcome.reason: <span class="t-ok">INVALID_CREDENTIALS</span>
+<span class="t-dim"># followed by a failed user.session.start with the same reason</span></code></pre>
+      <p class="note">The values are made up. The field names and codes match what Okta logged for my real denied push.</p>
+    </figure>
+    <p>The rule's query only counts pushes sent, so it would have worked anyway. The damage would have been in triage: an analyst following my notes would have searched for denials, found none, and read an attack as a slow phone. I fixed the triage notes and the test data, and all 16 cases across my rules still pass.</p>
+    <p>I'd already learned this once with an earlier check: test data has to copy real data, not my idea of it. Tests that pass on a guessed format only prove the guess.</p>
+
+    <h2>How I tested it</h2>
+    <ul>
+      <li>The rule test runner: 5 cases for this rule (1 fires, 4 stay quiet), 16 across all rules, run in CI on every pull request.</li>
+      <li>The runner's own self-tests. I changed one that broke every time a rule was added, because it pinned the total number of cases. It still checks that a skipped case isn't counted as a pass.</li>
+      <li>Against real data: the 19 earlier push events matched the query's fields, and one live denial confirmed what a denial looks like.</li>
+    </ul>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>The rule is turned off. The 5-push threshold is a starting value and hasn't fired on real data.</li>
+      <li>A slow drip, one push every 10 minutes, never reaches 5 in one window. A companion rule on denials would catch it.</li>
+      <li>I tested a denial that wasn't reported as suspicious. A reported one may log a different event.</li>
+      <li>My admin account uses number matching, where a push only works if I match the number shown on the sign-in screen. That defeats blind approval. The rule still matters for accounts or policies without it.</li>
+    </ul>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>

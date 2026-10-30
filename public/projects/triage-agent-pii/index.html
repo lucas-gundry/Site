@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keeping personal data out of an AI triage agent · Lucas Gundry</title>
+  <meta name="description" content="My AI triage agent sends log data to a hosted model and to Slack. Stand-ins keep real IP addresses, places and outside email addresses out. A deny list leaked twice before I switched.">
+  <meta property="og:title" content="Keeping personal data out of an AI triage agent · Lucas Gundry">
+  <meta property="og:description" content="My AI triage agent sends log data to a hosted model and to Slack. Stand-ins keep real IP addresses, places and outside email addresses out. A deny list leaked twice before I switched.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">AI security · data protection</span>
+    <h1>Keeping personal data out of an AI triage agent</h1>
+    <p class="meta">Python · MCP tool servers · Claude API · Slack · Elastic · Okta</p>
+
+    <div class="callout"><p><strong>In short:</strong> my triage agent sends log data to a hosted model and posts verdicts to Slack. My first design hid only the values I'd listed, and it leaked twice. I replaced it with stand-ins for every address, place and outside email. I wrote each leak up as a failing test before fixing it.</p></div>
+
+    <h2>Problem</h2>
+    <p>When a detection fires, the agent looks up the user and their sign-in history in the SIEM and in Okta. It sends what it found to a hosted language model, then posts a short verdict to Slack. So log data leaves the lab twice.</p>
+    <p>The company is fake, but the logs aren't all fake. Every sign-in comes from one of my own devices, so the logs hold my real IP addresses and the places they map to. And anyone can type anything into a sign-in page, including a real person's email address.</p>
+    <p>At a real company the stakes are higher. An AI tool in the SOC shouldn't send employee or customer identifiers to a third party just because they were in a log line.</p>
+
+    <h2>Design</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 360 300" role="img" aria-labelledby="pt pd" xmlns="http://www.w3.org/2000/svg"><title id="pt">Stand-ins applied inside the tool process</title><desc id="pd">The SIEM and Okta return real values to the tool servers. The tool servers replace identifiers with stand-ins and keep the mapping in memory. Only stand-ins go on to the model, the Slack message and the audit log. A final gate checks the Slack message again.</desc>
+<rect class="d-node" x="8" y="8" width="160" height="46" rx="8"/>
+<text class="d-title" x="88" y="29" text-anchor="middle">SIEM and Okta</text>
+<text class="d-sub" x="88" y="45" text-anchor="middle">real values</text>
+<rect class="d-key" x="8" y="94" width="344" height="62" rx="8"/>
+<text class="d-title" x="180" y="115" text-anchor="middle">Tool servers: stand-ins</text>
+<text class="d-sub" x="180" y="131" text-anchor="middle">address, place, outside email → [ip-1], [city-1], [email-1]</text>
+<text class="d-sub" x="180" y="147" text-anchor="middle">the mapping stays in memory here</text>
+<path class="d-edge" d="M88 54 L88 87"/>
+<polygon class="d-arrow" points="88,94 92,87 84,87"/>
+<rect class="d-node" x="8" y="196" width="104" height="46" rx="8"/>
+<text class="d-title" x="60" y="217" text-anchor="middle">Model</text>
+<text class="d-sub" x="60" y="233" text-anchor="middle">stand-ins only</text>
+<rect class="d-node" x="128" y="196" width="104" height="46" rx="8"/>
+<text class="d-title" x="180" y="217" text-anchor="middle">Audit log</text>
+<text class="d-sub" x="180" y="233" text-anchor="middle">stand-ins only</text>
+<rect class="d-key" x="248" y="196" width="104" height="46" rx="8"/>
+<text class="d-title" x="300" y="217" text-anchor="middle">Slack gate</text>
+<text class="d-sub" x="300" y="233" text-anchor="middle">no outside email</text>
+<rect class="d-node" x="248" y="262" width="104" height="30" rx="8"/>
+<text class="d-title" x="300" y="282" text-anchor="middle">Slack</text>
+<path class="d-edge" d="M60 156 L60 189"/><polygon class="d-arrow" points="60,196 64,189 56,189"/>
+<path class="d-edge" d="M180 156 L180 189"/><polygon class="d-arrow" points="180,196 184,189 176,189"/>
+<path class="d-edge" d="M300 156 L300 189"/><polygon class="d-arrow" points="300,196 304,189 296,189"/>
+<path class="d-edge" d="M300 242 L300 255"/><polygon class="d-arrow" points="300,262 304,255 296,255"/>
+</svg>
+      <figcaption>The highlighted boxes are the controls. Stand-ins are applied before anything leaves the tool servers, and the Slack message is checked again on its way out.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Stand-ins, not a list of secrets.</strong> Every IP address, country and city becomes <code>[ip-1]</code>, <code>[country-1]</code>, <code>[city-1]</code>. Every email outside the fake company's domain becomes <code>[email-1]</code>. The lab's admin account gets a fixed label, so the model still knows "this is the admin" without seeing the address. Fake employees' addresses stay as they are, because they're synthetic and the verdict has to say who the alert is about.</li>
+      <li><strong>Same value, same stand-in.</strong> Within a run, one address always gets the same stand-in. The model can still say "these two users signed in from the same address". The risk score is computed in code, and it works the same on stand-ins.</li>
+      <li><strong>The mapping never leaves the tool process.</strong> When the model asks about <code>[ip-1]</code>, the tool looks up the real address itself.</li>
+      <li><strong>Real values as input are refused.</strong> Otherwise a caller could test guesses ("is <code>[ip-1]</code> this address?").</li>
+      <li><strong>Fails closed.</strong> An identifier nobody thought about is hidden. The only way to show a real address is an allow-list of networks in code, meant for made-up attack addresses. It's empty, and changing it is a reviewed code change.</li>
+      <li><strong>A last check before Slack.</strong> The message builder refuses any post that contains an outside email address, even if a future code path skips the tools.</li>
+    </ul>
+
+    <h2>Before and after</h2>
+    <p>The same tool result, before and after stand-ins. All values are made up.</p>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>Before: what a deny list let through</strong><span>synthetic example</span></figcaption>
+      <pre><code>get_ip_activity
+  source_ip:  <span class="t-bad">2001:db8:7::21</span>      <span class="t-dim"># not on the deny list</span>
+  country:    <span class="t-bad">United States</span>
+  city:       <span class="t-bad">Springfield</span>
+  usernames tried from this address:
+    user-a@example-company           failure x5
+    <span class="t-bad">someone@outside.example</span>          failure x1   <span class="t-dim"># typed on the sign-in page</span></code></pre>
+    </figure>
+    <figure class="proof">
+      <figcaption class="proof-head"><strong>After: what the model and Slack see</strong><span>synthetic example</span></figcaption>
+      <pre><code>get_ip_activity
+  source_ip:  <span class="t-ok">[ip-1]</span>
+  country:    <span class="t-ok">[country-1]</span>
+  city:       <span class="t-ok">[city-1]</span>
+  usernames tried from this address:
+    user-a@example-company           failure x5   <span class="t-dim"># fake employee: kept</span>
+    <span class="t-ok">[email-1]</span>                        failure x1</code></pre>
+      <p class="note">The verdict can still say "the same address also tried one other account". It can't say which account, or where the address is.</p>
+    </figure>
+
+    <h2>What I got wrong</h2>
+    <h3>First, a deny list</h3>
+    <p>My first design masked a list of my known identifiers, like my home IP address and an old personal email. On the agent's first live run, one of my real IP addresses went to the model with its country and city. It was printed in the verdict and written into two audit records.</p>
+    <p>The masking code wasn't broken. The address came from another network my devices used, and it wasn't on the list. <strong>A deny list hides only what it holds.</strong></p>
+    <p>What bothers me most is that I had a leak test, and it passed. It checked that listed values were masked. It never asked what happens to a value that isn't on any list. Since every sign-in in the lab comes from my own devices, "hide the ones I know about" was the wrong default for all of the data.</p>
+    <p>The same evening I switched addresses and places to stand-ins, kept the deny list as a second layer, and the next live run was clean.</p>
+    <h3>Then the same mistake, for email</h3>
+    <p>Emails were still masked only by the deny list. Someone had typed an outside email address on the sign-in page. It reached the model and the Slack verdict through a tool that lists every username tried from an address. It was the same lesson in a different field. I applied stand-ins to emails too, added the fixed admin label, and added the check before Slack.</p>
+    <p>What the model provider received can't be recalled. I didn't edit the affected audit records, because altering logs to hide a mistake is worse than the mistake. They age out under the normal retention.</p>
+
+    <h2>How I tested it</h2>
+    <ul>
+      <li><strong>Each leak became a test, written first and seen failing.</strong> The address test runs the real tools against a fake SIEM, the real agent loop and the real audit writer, with a stand-in "model" that repeats everything it's shown. Before the fix, 5 of its 7 checks failed. The email test does the same end to end, through to the Slack message.</li>
+      <li><strong>24 unit tests for email stand-ins:</strong> one value gets one stand-in however it's spelled, look-alike characters (a full-width <code>@</code>) are normalized first, stand-ins work inside free text, and real values typed as input are refused.</li>
+      <li><strong>A live check</strong> reads real events from the SIEM and fails if any address or place in the tool output isn't a stand-in. The agent's full suite is 593 tests.</li>
+      <li><strong>A live test of the email fix:</strong> from one browser I made one sign-in attempt with a made-up outside address, then repeated failures for a fake employee. The alert fired and the agent ran on it. The Slack verdict named the other account only as <code>[email-1]</code>, and a scan of the run's audit records found no outside address.</li>
+    </ul>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>A verdict can say "a country not seen before", not which country. I look that up in the SIEM.</li>
+      <li>Stand-ins only mean something within one run. <code>[ip-1]</code> in two verdicts may be two different addresses.</li>
+      <li>A username typed without an <code>@</code> isn't an email, so it passes as typed. It's labeled as untrusted input.</li>
+      <li>At a company I'd classify fields from a data inventory instead of matching patterns, and put every AI integration behind one shared redaction service.</li>
+    </ul>
+
+    <h2>What I learned</h2>
+    <p>Ask "what about a value that's on no list?" before the first live run, not after. Listing what's allowed to leave fails safe. Listing what isn't allowed fails the first time the data has something you didn't think of.</p>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>
