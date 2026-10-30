@@ -100,6 +100,10 @@ a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
 }
 .callout p:last-child { margin-bottom: 0; }
 
+.shows { border: 1px solid var(--line); background: var(--surface); padding: 0.8rem 1rem; border-radius: 8px; margin: 0 0 1.5rem; }
+.shows p { margin: 0; }
+.shows .lab-note { margin-top: 0.5rem; font-size: 0.85rem; color: var(--muted); }
+
 /* Tables scroll on their own, never the page */
 .table-wrap { overflow-x: auto; margin: 1rem 0 1.25rem; border: 1px solid var(--line); border-radius: 8px; }
 table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }

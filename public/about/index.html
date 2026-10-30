@@ -30,7 +30,7 @@
 
     <h2>How I work</h2>
     <p>I test access by trying things that should fail. If a monitoring account can delete backups, I want to find that out myself.</p>
-    <p>I keep security decisions in code. In my triage agent, the model summarizes and suggests. Code checks permissions, and I approve anything that changes an account.</p>
+    <p>I keep security decisions in code. In my triage agent, the model summarizes and suggests, and code validates every tool call. The agent has no tools that change anything. Actions that would need my approval are designed but not built yet.</p>
     <p>I check the logs before I call something done. In one test the Okta console showed a permission as granted. The audit log showed it wasn't, and the log was right.</p>
     <p>When something looks broken, I measure it before I fix it, and I keep my notes when I turn out to be wrong. <a href="/projects/event-loss-investigation/">One of my write-ups</a> is about that.</p>
     <p>I keep secrets out of my repos and my logs. Every push to this site runs gitleaks and a check for internal hostnames and IDs.</p>

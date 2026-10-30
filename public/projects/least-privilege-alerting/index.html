@@ -29,6 +29,7 @@
     <span class="eyebrow">Least privilege and monitoring</span>
     <h1>Read-only monitoring and backup alerts</h1>
     <p class="meta">Elasticsearch roles · systemd · healthchecks.io · Python</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Least privilege you can verify: a monitoring role tested by what it's refused, backup checks with explicit rules, and alerting that also fires when a check goes silent. One test caught my own configuration mistake.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <h2>Problem</h2>
     <p>My SIEM takes a snapshot every night, and Okta events come in all day. Either one could fail without anyone noticing. Before this work, nothing told me if a nightly backup failed or if events went missing.</p>
@@ -152,9 +153,9 @@ All checks passed.</code></pre>
       <thead><tr><th>State</th><th>How I caused it</th><th>Gap check</th><th>Snapshot check</th></tr></thead>
       <tbody>
         <tr><td><strong>OK</strong></td><td>A normal run</td><td>Reported up, no email (correct)</td><td>Reported up</td></tr>
-        <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Rerun pending (see below)</td></tr>
-        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't finish</td><td>9 tries over 4 minutes, then a down email, then up</td><td>Rerun pending (see below)</td></tr>
-        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Caught a real bug (below). Rerun in progress</td></tr>
+        <tr><td><strong>Failed</strong></td><td>A stand-in check that reports a problem</td><td>Down email naming the lost event, then up after a real run</td><td>Not yet rerun on the right monitor</td></tr>
+        <tr><td><strong>Couldn't run</strong></td><td>A bad setting, so the check can't finish</td><td>9 tries over 4 minutes, then a down email, then up</td><td>Not yet rerun on the right monitor</td></tr>
+        <tr><td><strong>Didn't run</strong></td><td>Timer stopped past the grace period</td><td>Down email for the missing report, on time</td><td>Caught a real bug (below). Rerun passed: down email about an hour after the missed run, up email after the restart</td></tr>
       </tbody>
     </table></div>
     <p>I also ran the real snapshot check with a made-up password. It got a 401, exited with an error and sent nothing. An authentication error shouldn't turn into a status report.</p>
@@ -181,7 +182,7 @@ ok rules=- state=SUCCESS shards=103/103 age_min=734 count=12 oldest_days=10 trie
     <h3>What went wrong</h3>
     <p>The didn't-run test found a real mistake. I stopped the snapshot check's timer and waited for the missing-report email. It never came.</p>
     <p>The snapshot check's settings file had the gap check's ping URL in it. Every snapshot report since setup had gone to the gap check's monitor. That monitor gets an "ok" every hour from the gap check, so a skipped snapshot run could never set it off. The failure emails from my earlier tests were real, but they came from the wrong monitor.</p>
-    <p>The wrapper checked the URL's format, the file's permissions and the file's owner. The wrong URL passed all of them. Now the wrapper also refuses to run if its URL points at the gap check's monitor. I added 3 tests for that, and they fail if I take the guard out. I'm rerunning the alert tests on the right monitor.</p>
+    <p>The wrapper checked the URL's format, the file's permissions and the file's owner. The wrong URL passed all of them. Now the wrapper also refuses to run if its URL points at the gap check's monitor. I added 3 tests for that, and they fail if I take the guard out. On the right monitor, the didn't-run test then passed. The failed and couldn't-run tests haven't been rerun there yet.</p>
     <figure class="proof">
       <figcaption class="proof-head"><strong>The new guard, and its tests</strong><span>wrapper output and unit tests, 2026-10-15</span></figcaption>
       <pre><code><span class="t-bad">ERROR: SNAPCHECK_PING_URL is the gap check's URL (same check ID as &lt;gap check settings file&gt;); use the snapshot check's own URL</span>

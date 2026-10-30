@@ -29,8 +29,9 @@
     <span class="eyebrow">Monitoring · reliability</span>
     <h1>Knowing when the triage agent stops</h1>
     <p class="meta">systemd · Elastic · healthchecks.io · Python · Bash</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Monitoring the monitoring. A least-privilege check catches a stopped agent, a failed run and an expiring key, and an outside dead man's switch covers the case where nothing reports. I tested each alert path live except one, and the page says which.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
-    <div class="callout"><p><strong>In short:</strong> my AI triage agent checks for new alerts every 5 minutes. A separate read-only check confirms it's still ticking, that its last run succeeded, and that no key it needs is about to expire. The check reports to an outside service, which emails me on a failure and also when the check goes quiet. I tested the failure paths live.</p></div>
+    <div class="callout"><p><strong>In short:</strong> my AI triage agent checks for new alerts every 5 minutes. A separate read-only check confirms it's still ticking, that its last run succeeded, and that none of the three keys it has expiry dates for is about to expire. The check reports to an outside service, which emails me on a failure and also when the check goes quiet. I tested the failure paths live.</p></div>
 
     <h2>Problem</h2>
     <p>A triage agent that has stopped looks exactly like a quiet day: no posts in Slack. There are three ways it can fail:</p>

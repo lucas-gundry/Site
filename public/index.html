@@ -30,18 +30,6 @@
     <p class="lede">I'm building a homelab to show what I can do. It has a fake company in Okta, a SIEM in Elastic, detections I've tested, and an AI triage agent with guardrails that posts to Slack.</p>
     <p><a class="button" href="/projects/">Read the write-ups</a></p>
 
-    <h2>The lab</h2>
-    <p>Everything runs on one mini PC at home. The story is a fake shoe company that gets attacked. My detections should catch the attack, and the agent helps me investigate it. The agent can read data and suggest what to do. I approve anything that would change an account.</p>
-    <p>Done so far:</p>
-    <ul>
-      <li>An Okta directory for the fake company, with 30 users in 8 departments and 13 groups, all managed in Terraform.</li>
-      <li>Okta's audit log streams into Elastic. Every hour a separate check confirms each event arrived, matching by event ID.</li>
-      <li>Detections written as code, with test cases that run on every pull request: failed Okta sign-ins, SSH failures and sudo as another user are live. An MFA push fatigue rule is written and tested, but not turned on yet.</li>
-      <li>Nightly snapshots of the SIEM, with a daily check that emails me if a backup fails or the check stops reporting.</li>
-      <li>An AI triage agent that checks for new alerts every 5 minutes, investigates with read-only tools and posts a verdict to Slack. It's capped at 15 tool calls per run. Its tests assume the model obeys injected text, then check that code rejects what it asks for.</li>
-      <li>Personal data leaves the agent's tools only as stand-ins. A separate check emails me if the agent stops, fails or is about to lose a key.</li>
-    </ul>
-
     <h2>Write-ups</h2>
     <ul class="cards">
       <li><a class="card" href="/projects/triage-agent-pii/">

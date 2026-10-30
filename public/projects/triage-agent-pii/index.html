@@ -29,6 +29,7 @@
     <span class="eyebrow">AI security · data protection</span>
     <h1>Keeping personal data out of an AI triage agent</h1>
     <p class="meta">Python · MCP tool servers · Claude API · Slack · Elastic · Okta</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Handling sensitive data in an AI integration. I designed stand-ins that fail safe for addresses and places, kept real values inside the tool process, and turned two leaks into end-to-end regression tests.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <div class="callout"><p><strong>In short:</strong> my triage agent sends log data to a hosted model and posts verdicts to Slack. My first design hid only the values I'd listed, and it leaked twice. I replaced it with stand-ins for every address, place and outside email. I wrote each leak up as a failing test before fixing it.</p></div>
 
@@ -72,7 +73,7 @@
       <li><strong>Same value, same stand-in.</strong> Within a run, one address always gets the same stand-in. The model can still say "these two users signed in from the same address". The risk score is computed in code, and it works the same on stand-ins.</li>
       <li><strong>The mapping never leaves the tool process.</strong> When the model asks about <code>[ip-1]</code>, the tool looks up the real address itself.</li>
       <li><strong>Real values as input are refused.</strong> Otherwise a caller could test guesses ("is <code>[ip-1]</code> this address?").</li>
-      <li><strong>Fails closed.</strong> An identifier nobody thought about is hidden. The only way to show a real address is an allow-list of networks in code, meant for made-up attack addresses. It's empty, and changing it is a reviewed code change.</li>
+      <li><strong>Fails closed for addresses and places.</strong> Any IP address, country or city is replaced, not only the ones on a list. Other free text isn't covered (see Limits). The only way to show a real address is an allow-list of networks in code, meant for made-up attack addresses. It's empty, and changing it is a reviewed code change.</li>
       <li><strong>A last check before Slack.</strong> The message builder refuses any post that contains an outside email address, even if a future code path skips the tools.</li>
     </ul>
 

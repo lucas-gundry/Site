@@ -51,6 +51,26 @@ for img in $(echo "$files" | grep -Ei '\.(png|jpe?g|gif|webp|avif|ico)$'); do
     && { echo "FAIL metadata in $img: strip it (e.g. exiftool -all= or re-export)"; fail=1; }
 done
 
+# PDFs (the resume): the same patterns over the extracted text and the raw
+# bytes, and no identifying metadata. The info fields and XMP can carry an
+# author, the source file's name and path, or the editing app's account.
+# Producer is allowed: it names only the PDF library.
+pdfs=$(echo "$files" | grep -Ei '\.pdf$')
+if [ -n "$pdfs" ] && ! command -v pdftotext >/dev/null; then
+  echo "FAIL: poppler-utils (pdftotext, pdfinfo) not installed; can't check PDFs" >&2; fail=1
+else
+  for pdf in $pdfs; do
+    t=$(pdftotext -q "$pdf" - 2>/dev/null; strings -n 4 "$pdf")
+    for p in "${patterns[@]}"; do
+      echo "$t" | grep -qEi -- "$p" && { echo "FAIL private detail /$p/ inside $pdf"; fail=1; }
+    done
+    info=$(pdfinfo "$pdf" 2>/dev/null | grep -E '^(Author|Creator|Title|Subject|Keywords):' | grep -vE ':\s*$')
+    [ -z "$info" ] || { echo "FAIL metadata in $pdf: strip it"; echo "$info" | sed 's/^/  /'; fail=1; }
+    pdfinfo -meta "$pdf" 2>/dev/null | grep -q '<x:xmpmeta' \
+      && { echo "FAIL XMP metadata in $pdf: strip it"; fail=1; }
+  done
+fi
+
 # Internal links: every href="/..." must resolve to a file under public/.
 for f in $(echo "$files" | grep '^public/.*\.html$'); do
   for h in $(grep -oE 'href="/[^"#]*"' "$f" | sed -E 's/href="\/(.*)"/\1/'); do

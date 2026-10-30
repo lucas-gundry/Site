@@ -29,6 +29,7 @@
     <span class="eyebrow">Identity and detection</span>
     <h1>Okta in Terraform, and a detection I tested both ways</h1>
     <p class="meta">Okta · Terraform · Elastic · Sigma</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Identity as code and tested detections: a fake company's Okta directory managed in Terraform from an HR file, a log reader with one read-only scope, and a detection tested for when it should fire and when it shouldn't.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <h2>Problem</h2>
     <p>Most attacks on a company go through its identity provider. I wanted my fake company's Okta setup to be reviewable. When someone adds a user or changes a group by hand, nobody reviews it and there's no record of why.</p>

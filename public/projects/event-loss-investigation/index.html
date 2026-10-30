@@ -29,6 +29,7 @@
     <span class="eyebrow">Investigation</span>
     <h1>Missing logs that weren't missing</h1>
     <p class="meta">Okta · Elastic Agent · Elasticsearch · Python</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Root-cause analysis on security telemetry. I measured instead of trusting an alarming log line, built an independent check that matches every event by ID, and dropped my own conclusion when the evidence contradicted it.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <h2>Problem</h2>
     <p>After I rebooted the lab, the agent that ships Okta's audit log to my SIEM logged <code>Exporting failed. Dropping data.</code> It had tried to send events while Elasticsearch was still starting.</p>

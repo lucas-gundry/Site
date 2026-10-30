@@ -29,6 +29,7 @@
     <span class="eyebrow">Detection engineering</span>
     <h1>An MFA fatigue detection, and the test data I guessed wrong</h1>
     <p class="meta">Sigma · Elastic Security · Okta Verify · GitHub Actions</p>
+    <div class="shows"><p><strong>What this demonstrates:</strong> Detection engineering end to end: Sigma logic, an Elastic threshold rule, test cases that run in CI, and checking test data against real telemetry before turning a rule on.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <div class="callout"><p><strong>In short:</strong> I wrote a rule for MFA push fatigue as code, with test cases that CI runs on every change. Before turning it on, I checked it against one real push. The event name for "push sent" was right. But a real denial is logged under a different event than the one my test data used, so I fixed the test data. The rule is in the repo and passes its tests. It isn't turned on yet.</p></div>
 
