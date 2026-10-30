@@ -1,6 +1,6 @@
 // Cloudflare Worker "lucasgundry": static assets only, no Worker code.
 // Previews: scripts/deploy-preview.sh (wrangler versions upload, alias
-// "preview"). Production (wrangler versions deploy) only with Lucas's OK.
+// "preview"). Production: scripts/deploy-production.sh, run by Lucas only.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lucasgundry",
@@ -11,6 +11,13 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
+  // Added in the dashboard 2026-10-29; listed here so the config matches
+  // what's live. Routes change only with wrangler deploy or triggers deploy,
+  // never with versions upload or versions deploy.
+  "routes": [
+    { "pattern": "lucasgundry.com", "custom_domain": true },
+    { "pattern": "www.lucasgundry.com", "custom_domain": true }
+  ],
   "workers_dev": true,
   "preview_urls": true
 }
