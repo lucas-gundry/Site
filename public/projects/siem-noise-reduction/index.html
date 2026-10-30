@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cutting SIEM noise without losing coverage · Lucas Gundry</title>
-  <meta name="description" content="As the SOC's detection and response lead, I cut alert volume by about 30% by tuning noisy detections against normal work and checking that quiet detections could still fire.">
+  <meta name="description" content="As lead for SOC detection and response, I reworked SIEM detections and correlation logic, reducing alert volume by about 30% while keeping useful coverage.">
   <meta property="og:title" content="Cutting SIEM noise without losing coverage · Lucas Gundry">
-  <meta property="og:description" content="As the SOC's detection and response lead, I cut alert volume by about 30% by tuning noisy detections against normal work and checking that quiet detections could still fire.">
+  <meta property="og:description" content="As lead for SOC detection and response, I reworked SIEM detections and correlation logic, reducing alert volume by about 30% while keeping useful coverage.">
   <meta property="og:type" content="website">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
@@ -30,35 +30,19 @@
 <a class="back" href="/projects/">&larr; All projects</a>
     <span class="eyebrow">Professional work · detection engineering</span>
     <h1>Cutting SIEM noise without losing coverage</h1>
-    <p class="meta">Elastic · Sumo Logic · AWS · detection tuning</p>
-    <div class="shows"><p><strong>What this demonstrates:</strong> running detection tuning as an operational practice: finding where the noise comes from, tuning it against how people actually work, and checking that quieter detections can still fire.</p><p class="lab-note">Professional work at a previous employer. The employer and internal details are left out.</p></div>
+    <p class="meta">Elastic · Sumo Logic</p>
+    <div class="shows"><p>Professional work at a previous employer. The employer and internal details are left out.</p></div>
 
-    <h2>Problem</h2>
-    <p>I led detection and response for the SOC. The team got a lot of alerts, and many of them weren't attacks. File integrity monitoring fired on routine changes, and other detections flagged the normal course of people's work. When many alerts are false positives, the real ones are easier to miss.</p>
+    <p class="lede">As lead for SOC detection and response, I reworked SIEM detections and correlation logic, reducing alert volume by about 30% while keeping useful coverage and giving responders more context.</p>
 
-    <h2>What I did</h2>
-    <h3>Found the noise</h3>
-    <p>I used dashboards to rank detections by alert volume, then started with the highest.</p>
-    <h3>Tuned against normal work</h3>
-    <p>Two kinds of change did most of the work:</p>
-    <ul>
-      <li><strong>Correlating alerts with normal work.</strong> Before tuning an alert, I looked at what was actually behind it. For AWS Systems Manager (SSM) logins, I reviewed which users started the sessions and the commands they ran, and confirmed it was normal work before tuning the detection around it.</li>
-      <li><strong>Reducing built-in rules that over-alerted.</strong> Some of the SIEMs' built-in rules over-alerted, so I reduced them.</li>
-    </ul>
-    <h3>Checked that quiet detections still worked</h3>
-    <p>Less noise is only good if real detections still fire. For detections that hadn't fired in a long time, I looked for a way to test them, triggering the activity on purpose where I could. That wasn't always possible.</p>
+    <h2>Approach</h2>
+    <p>I found the noisiest rules through dashboards, starting with the highest volumes. Many of those alerts were false positives from the normal course of work, so I correlated them with normal work. I reduced the built-in rules that over-alerted. For detections that hadn't fired in 90 days, I found a way to test them, firing them intentionally where that was possible. I measured the change month over month on dashboards, by alert type and count.</p>
 
-    <h2>Result</h2>
-    <p>I tracked alert volume on dashboards month over month, by alert type and count. Alert volume dropped by about 30%, while keeping useful coverage and giving responders more context.</p>
-
-    <h2>Limits</h2>
-    <ul>
-      <li>The 30% is alert volume, measured on dashboards. It isn't a measure of detection quality on its own.</li>
-      <li>Triggering a quiet detection on purpose wasn't always possible, so not all of them could be tested that way.</li>
-    </ul>
+    <h2>Limit</h2>
+    <p>The 30% is alert volume. It isn't a measure of detection quality on its own.</p>
 
     <h2>Related lab work</h2>
-    <p>My lab write-ups show the same habits in public detail: <a href="/projects/okta-terraform-sigma/">a detection tested for when it should fire and when it shouldn't</a>, and <a href="/projects/mfa-fatigue-detection/">checking test data against real events before turning a rule on</a>.</p>
+    <p><a href="/projects/okta-terraform-sigma/">A detection tested for when it should fire and when it shouldn't</a>, and <a href="/projects/mfa-fatigue-detection/">checking test data against real events before turning a rule on</a>.</p>
   </main>
   <footer class="site-footer">
     <div class="wrap">
