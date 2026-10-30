@@ -97,7 +97,7 @@ event.dataset:okta.system AND (event.action:user.session.start AND event.outcome
 # Elastic threshold rule on top of that query:
 #   group by   user.name
 #   threshold  &gt;= 5
-#   runs every 5 minutes, looks back 6</code></pre>
+#   runs every 5 minutes, looks back 6 minutes</code></pre>
       <p class="note">Exact command and output, from the rule file's header. The threshold settings are summarized from the Elastic rule.</p>
     </figure>
     <p>A script deploys the rule with an API key that can only manage detection rules. The key expires after 90 days.</p>

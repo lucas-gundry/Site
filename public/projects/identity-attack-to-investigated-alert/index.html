@@ -33,7 +33,7 @@
     <div class="shows"><p><strong>What this demonstrates:</strong> one alert followed through every stage I built: identity telemetry, detection, AI-assisted triage with personal data kept out, and a clear line between what the agent may do and what a person decides. Six of the seven steps ran live in one test; the last is designed but not built, and this page says so.</p><p class="lab-note">Homelab project: a fake company, real systems, my own test traffic.</p></div>
 
     <h2>The test</h2>
-    <p>On October 28 I played the attacker against my own lab. From one private browser window I tried to sign in once with a made-up outside email address, then entered a wrong password five times for a fake employee. Then I watched what each part of the lab did with it, without touching anything until the verdict was in Slack.</p>
+    <p>On October 28 I played the attacker against my own lab and its company, Bionic Footwear (fictional). From one private browser window I tried to sign in once with a made-up outside email address, then entered a wrong password five times for a fake employee. Then I watched what each part of the lab did with it, without touching anything until the verdict was in Slack.</p>
     <p>Everything below is rebuilt from that run. Names, addresses and IDs are replaced with made-up values; times, counts and event names are real.</p>
 
     <div class="table-wrap"><table>
@@ -57,15 +57,16 @@
       <input type="radio" name="w" id="w-5" aria-label="Step 5 of 7">
       <input type="radio" name="w" id="w-6" aria-label="Step 6 of 7">
       <input type="radio" name="w" id="w-7" aria-label="Step 7 of 7">
-      <div class="replay-head"><strong>Walkthrough</strong><span>Times are Pacific, 2026-10-28. Made-up names and IDs.</span></div>
-      <ol class="replay-dots">
-        <li><label for="w-1" title="Step 1">1</label></li>
-        <li><label for="w-2" title="Step 2">2</label></li>
-        <li><label for="w-3" title="Step 3">3</label></li>
-        <li><label for="w-4" title="Step 4">4</label></li>
-        <li><label for="w-5" title="Step 5">5</label></li>
-        <li><label for="w-6" title="Step 6">6</label></li>
-        <li><label for="w-7" title="Step 7">7</label></li>
+      <div class="replay-head"><strong>Walkthrough</strong>
+        <span>Times are Pacific, 2026-10-28. Made-up names and IDs.</span></div>
+      <ol class="replay-dots" aria-hidden="true">
+        <li><label for="w-1" title="Step 1"></label></li>
+        <li><label for="w-2" title="Step 2"></label></li>
+        <li><label for="w-3" title="Step 3"></label></li>
+        <li><label for="w-4" title="Step 4"></label></li>
+        <li><label for="w-5" title="Step 5"></label></li>
+        <li><label for="w-6" title="Step 6"></label></li>
+        <li><label for="w-7" title="Step 7"></label></li>
       </ol>
       <ol class="replay-steps">
         <li class="replay-step">
@@ -89,7 +90,7 @@
         <li class="replay-step">
           <span class="when">1:00–1:03 PM run · step 3 of 7 · ran live</span>
           <h4>The detection fires</h4>
-          <p>The rule counts failed sign-ins per user: 5 or more in one run fires. It runs every 5 minutes, looks back 6, and counts by ingest time so late events still count. It fired once for <code>user-a</code>.</p>
+          <p>The rule counts failed sign-ins per user: 5 or more in one run fires. It runs every 5 minutes, looks back 6 minutes, and counts by ingest time so late events still count. It fired once for <code>user-a</code>.</p>
           <pre>ALERT  Okta: repeated failed sign-ins for one user
        user.name: user-a@example-company   count: 5</pre>
           <div class="replay-nav"><label for="w-2">&larr; Back</label><label for="w-4">Next &rarr;</label></div>
@@ -100,9 +101,10 @@
           <p>A timer checks for new alerts every 5 minutes and claims each alert once. The agent can call only read-only tools, at most 15 per run, with a token cap. Here it looked up the alert, the user's sign-ins, everything else from that address, the account and its groups.</p>
           <pre>tick: 1 open alerts in 24h, 1 not yet run, running 1
 totals: 6 of 15 tool calls, 1 model request,
-        9515 of 150000 tokens, 0 strings that looked like injection
+        9,515 of 150,000 tokens, 0 strings that looked like injection
 posted to Slack (verdict)
 exit=0 verdict</pre>
+          <p>The "0 strings that looked like injection" is a pattern count for this one run's tool output. It shows nothing suspicious came back this time; it doesn't prove the agent resists injection. That's covered by tests that assume the model obeys injected text and check that code rejects what it asks for.</p>
           <p>The risk score is computed in code, not by the model. The model's answer has to pass checks before it's posted: every piece of evidence must cite events the tools returned.</p>
           <div class="replay-nav"><label for="w-3">&larr; Back</label><label for="w-5">Next &rarr;</label></div>
         </li>
