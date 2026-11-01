@@ -17,4 +17,21 @@ the Cloudflare Worker `lucasgundry` (config in `wrangler.jsonc`). Only
   with private details replaced, inline SVG diagrams, and CSS-only replays
   (radio buttons; no script, so the CSP stays `default-src 'none'`).
 
+## Release safety
+
+Two scripts guard what reaches the public site:
+
+- [`scripts/check.sh`](scripts/check.sh) runs before every push and every
+  deploy. It runs gitleaks over the files and the history, searches for
+  private details a secret scanner wouldn't flag, checks images and the PDF
+  for metadata, and confirms internal links resolve. The script holds only
+  pattern shapes. Real names stay in a git-ignored file, so the check can't
+  leak what it looks for.
+- [`scripts/deploy-production.sh`](scripts/deploy-production.sh) is run by
+  hand. It deploys only a clean `main` that matches `origin/main`, re-runs the
+  checks, and confirms the version was uploaded from that exact commit. It
+  then asks for a typed confirmation and waits until production serves every
+  file of the new version. It also refuses to run in an AI agent's shell;
+  that's a seatbelt, not a security boundary.
+
 Preview locally: run `python3 -m http.server -d public` and open the address it prints.
