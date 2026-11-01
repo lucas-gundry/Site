@@ -39,7 +39,7 @@
 
     <h2>Design</h2>
     <ul>
-      <li><strong>A Sigma rule for one event:</strong> Okta sent an Okta Verify push (<code>system.push.send_factor_verify_push</code>). Sigma keeps the logic portable across SIEMs.</li>
+      <li><strong>A Sigma rule for one event:</strong> Okta sent an Okta Verify push (<code>system.push.<wbr>send_factor_verify_push</code>). Sigma keeps the logic portable across SIEMs.</li>
       <li><strong>The count lives in the Elastic rule:</strong> 5 or more pushes for one <code>user.name</code> in one run. It runs every 5 minutes and looks back 6 minutes. My failed sign-in rule has the same shape, because the Sigma converters can't produce a Kibana threshold rule.</li>
       <li><strong>Counted by ingest time, not event time,</strong> so events that arrive late still count in the next run.</li>
       <li><strong>Triage notes in the rule:</strong> who was targeted, from where, whether pushes were denied, and above all whether a push was approved or a session started afterwards. If so, treat the password as known and reset it. A person approves that action.</li>
