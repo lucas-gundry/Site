@@ -76,6 +76,7 @@ li { margin-bottom: 0.35rem; }
 code {
   font: 0.88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px;
+  overflow-wrap: anywhere;
 }
 
 /* Cards */
