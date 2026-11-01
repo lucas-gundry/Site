@@ -19,16 +19,21 @@ fi
 # Private details: Okta org, lab hostnames and container names, account
 # names, IP addresses, UUIDs (event IDs), ping URLs, personal email, and
 # AWS identifiers (12-digit account IDs, the Identity Center start URL,
-# the Terraform state bucket's real name). Patterns are shapes, never the
-# real values, so this file can't leak them itself.
+# the Terraform state bucket's real name). Patterns here are shapes, never
+# the real values. Real names go in .check-private-patterns (git-ignored,
+# one regex per line) so this public file can't leak them itself.
 patterns=(
-  '\b[0-9]{12}\b' '\bd-[0-9a-z]{10}\b' 'awsapps\.com' 'bionic-tfstate-[0-9a-f]{6,}'
+  '\b[0-9]{12}\b' '\bd-[0-9a-z]{10}\b' 'awsapps\.com'
   'integrator-[0-9]+' 'okta(preview)?\.com/' '-admin\.okta'
-  '\blabby\b' '\bes01\b' 'elastic-es01' 'fleet-server' 'kibana_rules'
-  '\blab-(analyst|admin)\b' 'analyst-read' '\bdaddio\b' '\belastic_env\b' '_env\b'
+  'fleet-server' 'kibana_rules' '_env\b'
   '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-'
   'hc-ping\.com' '@gmail\.com' 'bionic\.lucasgundry' 'localhost:[0-9]+'
 )
+if [ -s .check-private-patterns ]; then
+  while IFS= read -r p; do [ -n "$p" ] && patterns+=("$p"); done < .check-private-patterns
+else
+  echo "FAIL: .check-private-patterns missing or empty; private names unchecked" >&2; fail=1
+fi
 files=$(git ls-files --cached --others --exclude-standard | grep -vE '^(scripts/check\.sh|\.gitignore)$')
 for p in "${patterns[@]}"; do
   scope=$files

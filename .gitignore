@@ -3,3 +3,4 @@
 .env
 .env.*
 *_env
+.check-private-patterns
