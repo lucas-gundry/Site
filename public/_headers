@@ -7,6 +7,13 @@
   Cross-Origin-Opener-Policy: same-origin
   X-Frame-Options: DENY
 
+# The triage demo runs its own script and fetches its own data file, so it
+# needs script-src and connect-src ('self' only). Detach the site CSP above
+# and set the same policy plus those two; the other headers still apply.
+/lab/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
 /assets/*
   Cache-Control: public, max-age=3600
 

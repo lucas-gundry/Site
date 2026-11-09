@@ -22,11 +22,12 @@ fi
 # the Terraform state bucket's real name). Patterns here are shapes, never
 # the real values. Real names go in .check-private-patterns (git-ignored,
 # one regex per line) so this public file can't leak them itself.
+ip_pattern='\b([0-9]{1,3}\.){3}[0-9]{1,3}\b'
 patterns=(
   '\b[0-9]{12}\b' '\bd-[0-9a-z]{10}\b' 'awsapps\.com'
   'integrator-[0-9]+' 'okta(preview)?\.com/' '-admin\.okta'
   'fleet-server' 'kibana_rules' '_env\b'
-  '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-'
+  "$ip_pattern" '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-'
   'hc-ping\.com' '@gmail\.com' 'bionic\.lucasgundry' 'localhost:[0-9]+'
 )
 if [ -s .check-private-patterns ]; then
@@ -40,6 +41,16 @@ for p in "${patterns[@]}"; do
   # scripts/ isn't served and names its own credential file; every other
   # pattern, and gitleaks, still cover it.
   [ "$p" = '_env\b' ] && scope=$(echo "$files" | grep -v '^scripts/')
+  # public/lab/ is the synthetic triage demo. Its data uses the RFC 5737
+  # documentation ranges (192.0.2.x, 198.51.100.x, 203.0.113.x), which
+  # can't be anyone's address. There, any other IP still fails; outside
+  # public/lab/, every IP fails as before.
+  if [ "$p" = "$ip_pattern" ]; then
+    scope=$(echo "$files" | grep -v '^public/lab/')
+    lab_hits=$(echo "$files" | grep '^public/lab/' | xargs -r grep -HnoE -- "$p" 2>/dev/null \
+      | grep -vE ':(192\.0\.2|198\.51\.100|203\.0\.113)\.[0-9]{1,3}$')
+    if [ -n "$lab_hits" ]; then echo "FAIL non-documentation IP in public/lab/:"; echo "$lab_hits"; fail=1; fi
+  fi
   hits=$(echo "$scope" | xargs -r grep -nEi -- "$p" 2>/dev/null)
   if [ -n "$hits" ]; then echo "FAIL private detail /$p/:"; echo "$hits"; fail=1; fi
 done
