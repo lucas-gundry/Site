@@ -9,6 +9,3 @@
 
 /assets/*
   Cache-Control: public, max-age=3600
-
-/resume.pdf
-  Content-Disposition: attachment; filename="Lucas-Gundry-Resume.pdf"
