@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Making a cloud SIEM quieter, and finding what it couldn't see · Lucas Gundry</title>
+  <meta name="description" content="In a cloud SIEM, I cut about 480 of 1,100 monthly signals with scoped, expiring suppressions, found missing log sources, and shipped a first cross-system account-takeover correlation behind a review period.">
+  <meta property="og:title" content="Making a cloud SIEM quieter, and finding what it couldn't see · Lucas Gundry">
+  <meta property="og:description" content="In a cloud SIEM, I cut about 480 of 1,100 monthly signals with scoped, expiring suppressions, found missing log sources, and shipped a first cross-system account-takeover correlation behind a review period.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Lucas Gundry<span>.</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/projects/" aria-current="page">Projects</a>
+        <a href="/about/">About</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+<a class="back" href="/projects/">&larr; All projects</a>
+    <span class="eyebrow">Professional work · detection engineering</span>
+    <h1>Making a cloud SIEM quieter, and finding what it couldn't see</h1>
+    <p class="meta">Datadog Cloud SIEM · AWS CloudTrail · Okta · SentinelOne</p>
+    <div class="shows"><p>Professional work at a fintech company (contract). The employer and internal details are left out.</p></div>
+
+    <p class="lede">The SIEM raised about 1,100 signals a month, most of them harmless. I removed about 480 a month with narrow suppressions that expire, found log sources that weren't arriving, gave identity one shared key across systems, and used it to ship the first detection that follows an account takeover across more than one system.</p>
+
+    <h2>The problem</h2>
+    <p>Most signals came from known, harmless activity in the normal course of work, so the real ones were easy to miss. Volume was only half of it: a quiet SIEM can also mean logs that never arrive.</p>
+
+    <h2>Cutting noise without hiding things</h2>
+    <p>I started with the highest-volume rules. For each known-benign pattern I wrote a suppression scoped to one user or service, not the whole rule, so the rule still fires for everyone else. Every suppression has an expiry date, so it comes back for review instead of living forever.</p>
+    <p>Some rules alerted on attempts rather than outcomes. A rule that fired on every Log4Shell exploit attempt, for example, was one of the largest sources on its own. I retired attempt-only rules like that in favor of rules that fire when an attempt succeeds. I also moved SentinelOne exclusions off device groups that turned out to be empty, and found one suppression that had never matched anything.</p>
+
+    <h2>Checking what the SIEM could see</h2>
+    <p>I compared the sources the SIEM should have with what it was actually receiving. CloudTrail wasn't arriving from most AWS accounts, and some integrations were set up but had stopped sending.</p>
+
+    <h2>One identity key across systems</h2>
+    <p>CloudTrail, Okta and SentinelOne each name a person differently. I normalized all three to the user's email address, so one search follows a person across cloud, identity and endpoint activity.</p>
+
+    <h2>A cross-system account-takeover detection</h2>
+    <p>With the shared key in place, I built the first detection that correlates across systems: a sign-in from a new country, followed within a day by a sensitive change in the password manager, Google Workspace, the web application firewall or AWS. Before shipping it, I checked that every input carried the email field, because a correlation on a missing key fails silently.</p>
+    <p>It shipped at informational severity and is reviewed during a learning period before it can be promoted to an alert, so it proves its accuracy before it can page anyone.</p>
+
+    <h2>Two automations</h2>
+    <ul>
+      <li>Every 15 minutes, signals that SentinelOne or the managed detection and response provider have already resolved as false positive or benign are archived, with their notes. Analysts start with the ones that still need a person.</li>
+      <li>A scheduled audit checks the web application firewall's configuration against what it should be.</li>
+    </ul>
+
+    <h2>How I checked</h2>
+    <p>Each suppression covers one user or service, so the rule keeps firing for everyone else. Each one expires, so it gets reviewed again instead of quietly hiding activity forever.</p>
+
+    <h2>Limits</h2>
+    <p>Fewer signals is a volume measure, not proof of better detection. The correlation is new, and its review period is what will show how accurate it is.</p>
+
+    <h2>Related lab work</h2>
+    <p><a href="/projects/identity-attack-to-investigated-alert/">Following one identity attack across systems</a>, <a href="/projects/event-loss-investigation/">checking whether events really arrive</a>, and <a href="/projects/triage-agent-dead-mans-switch/">catching a check that silently stops</a>.</p>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>&copy; 2026 Lucas Gundry</span>
+      <a href="mailto:lucas@lucasgundry.com">lucas@lucasgundry.com</a>
+    </div>
+  </footer>
+</body>
+</html>
